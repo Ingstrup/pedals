@@ -1,388 +1,483 @@
-// --- State & Config ---
-const STATE_KEY = 'pb_minimal_state';
-let state = {
-    items: [], 
-    panX: 0, panY: 0, zoom: 1,
-    snapToGrid: false
-};
-let rawData = { boards: [], pedals: [] };
-let searchCache = [];
-let zIndexCounter = 10;
-let spawnOffsetPedal = 0;
-let previewTimer = null;
-
-// --- DOM Elements ---
-const DOM = {
-    container: document.getElementById('canvas-container'),
-    workspace: document.getElementById('workspace'),
-    previewOverlay: document.getElementById('preview-overlay'),
-    previewImg: document.getElementById('preview-img'),
-    pedalSearch: document.getElementById('pedal-search'),
-    searchResults: document.getElementById('search-results'),
-    boardSelect: document.getElementById('board-select'),
-    snapToggle: document.getElementById('snap-toggle'),
-    onBoardCount: document.getElementById('on-board-count'),
-    emptyState: document.getElementById('empty-state'),
-    btnAddBoard: document.getElementById('btn-add-board')
+// --- APP STATE ---
+const state = {
+    selectedBoard: null,
+    pedals: [],
+    boards: [],
+    placedPedals: [],
+    zoom: 1,
+    panX: 0,
+    panY: 0
 };
 
-// --- Initialization ---
+// Converts the JSON schema to app schema
+function normalizePedals(raw) {
+    if (!Array.isArray(raw)) return [];
+    return raw.map(p => ({
+        id: ((p.Brand || 'unk') + '_' + (p.Name || 'unk')).toLowerCase().replace(/[^a-z0-9]/g, '_'),
+        name: p.Name || "Unknown",
+        brand: p.Brand || "Unknown",
+        width: Math.round((p.Width || 2) * 25.4),
+        height: Math.round((p.Height || 4) * 25.4),
+        // Updated to match your new folder structure
+        image: './data/images/pedals/' + p.Image
+    }));
+}
+
+// --- INITIALIZATION ---
 async function init() {
-    loadState();
     await loadData();
+    setupCustomLists();
     setupEventListeners();
-    renderWorkspace();
-    updateUiState();
+    setupBoardPanning();
+
+    const container = document.getElementById('canvas-container');
+    state.panX = container.clientWidth / 2 - 200;
+    state.panY = container.clientHeight / 2 - 100;
+    updateTransform();
+
+    loadFromLocalStorage();
 }
 
 async function loadData() {
     try {
         const [boardsRes, pedalsRes] = await Promise.all([
-            fetch('data/boards.json').catch(() => ({ ok: false })),
-            fetch('data/pedals.json').catch(() => ({ ok: false }))
+            fetch('./data/boards.json').catch(err => null),
+            fetch('./data/pedals.json').catch(err => null)
         ]);
 
-        if (boardsRes.ok) rawData.boards = await boardsRes.json();
-        if (pedalsRes.ok) rawData.pedals = await pedalsRes.json();
+        if (boardsRes && boardsRes.ok) state.boards = await boardsRes.json();
+        if (pedalsRes && pedalsRes.ok) state.pedals = normalizePedals(await pedalsRes.json());
 
-        // Populate board dropdown
-        rawData.boards.forEach(b => {
-            const opt = document.createElement('option');
-            opt.value = b.id;
-            opt.textContent = `${b.brand} ${b.name} (${b.width}x${b.height}cm)`;
-            DOM.boardSelect.appendChild(opt);
-        });
-
-        // Cache pedal strings for fuzzy search
-        searchCache = rawData.pedals.map(p => ({
-            ...p,
-            _searchTokens: `${p.brand} ${p.name}`.toLowerCase().replace(/-/g, '').split(/\s+/)
-        }));
     } catch (e) {
-        console.warn('Data missing or malformed.');
+        console.error("Fatal network error during loadData:", e);
     }
 }
 
-// --- LocalStorage ---
-function loadState() {
-    const saved = localStorage.getItem(STATE_KEY);
-    if (saved) {
-        try {
-            state = { ...state, ...JSON.parse(saved) };
-            DOM.snapToggle.checked = state.snapToGrid;
-        } catch (e) { console.error('Corrupt state'); }
-    }
-}
+// --- HIGH PERFORMANCE LIST MANAGER WITH KEYBOARD NAV ---
+let boardListManager = null;
 
-function saveState() {
-    localStorage.setItem(STATE_KEY, JSON.stringify(state));
-    updateUiState();
-}
+function setupCustomLists() {
+    const previewOverlay = document.getElementById('preview-overlay');
+    const previewImg = document.getElementById('preview-image');
+    const previewName = document.getElementById('preview-name');
 
-// Update counters and empty states
-function updateUiState() {
-    const pedalCount = state.items.filter(i => !i.isBoard).length;
-    DOM.onBoardCount.textContent = `On Board (${pedalCount})`;
-    
-    const hasBoard = state.items.some(i => i.isBoard);
-    if (hasBoard || state.items.length > 0) {
-        DOM.emptyState.classList.add('d-none');
-        DOM.emptyState.classList.remove('d-flex');
-    } else {
-        DOM.emptyState.classList.remove('d-none');
-        DOM.emptyState.classList.add('d-flex');
-    }
-}
+    // Reusable factory for highly performant lists
+    function createListManager(inputId, listId, data, formatText, onSelect, onHighlight) {
+        const input = document.getElementById(inputId);
+        const list = document.getElementById(listId);
 
-// --- Canvas Mechanics ---
-let isPanning = false, startPanX, startPanY;
+        const nodes = [];
+        let visibleNodes = [];
+        let activeIndex = -1;
 
-function renderWorkspace() {
-    DOM.workspace.style.transform = `translate(${state.panX}px, ${state.panY}px) scale(${state.zoom})`;
-    DOM.workspace.innerHTML = ''; 
-    state.items.sort((a, b) => a.zIndex - b.zIndex).forEach(renderItem);
-}
+        // Build the DOM once
+        function addNode(item) {
+            const div = document.createElement('div');
+            div.className = 'list-item';
+            const text = formatText(item);
+            div.innerText = text;
 
-function updateWorkspaceTransform() {
-    DOM.workspace.style.transform = `translate(${state.panX}px, ${state.panY}px) scale(${state.zoom})`;
-    saveState();
-}
+            const nodeObj = {
+                el: div,
+                item: item,
+                // CACHE THE TEXT IN MEMORY! No more reading from the DOM!
+                searchString: text.toLowerCase().replace(/-/g, '')
+            };
 
-DOM.container.addEventListener('mousedown', (e) => {
-    if (e.target === DOM.container || e.target === DOM.workspace) {
-        isPanning = true;
-        startPanX = e.clientX - state.panX;
-        startPanY = e.clientY - state.panY;
-    }
-});
+            // Using mousedown prevents the input from stealing focus and hiding the list too early
+            div.onmousedown = (e) => {
+                e.preventDefault();
+                onSelect(item);
+                list.classList.remove('active');
+                input.blur();
+                if (onHighlight) onHighlight(null);
+            };
 
-window.addEventListener('mousemove', (e) => {
-    if (isPanning) {
-        state.panX = e.clientX - startPanX;
-        state.panY = e.clientY - startPanY;
-        updateWorkspaceTransform();
-    }
-});
+            div.addEventListener('mouseenter', () => setHighlight(visibleNodes.indexOf(nodeObj), false));
 
-window.addEventListener('mouseup', () => isPanning = false);
-
-DOM.container.addEventListener('wheel', (e) => {
-    e.preventDefault();
-    const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
-    state.zoom = Math.max(0.1, Math.min(state.zoom * zoomFactor, 3));
-    updateWorkspaceTransform();
-}, { passive: false });
-
-
-// --- Items (Drag/Drop/Z-index/Delete) ---
-function renderItem(itemData) {
-    const el = document.createElement('div');
-    el.className = `canvas-item ${itemData.isBoard ? 'canvas-board' : 'canvas-pedal'}`;
-    el.style.width = `${itemData.width}px`;
-    el.style.height = `${itemData.height}px`;
-    el.style.left = `${itemData.x}px`;
-    el.style.top = `${itemData.y}px`;
-    el.style.zIndex = itemData.zIndex;
-    if (itemData.src) el.style.backgroundImage = `url('${itemData.src}')`;
-    el.dataset.uid = itemData.uid;
-
-    el.addEventListener('mousedown', (e) => handleItemInteractionStart(e, itemData, el));
-    
-    // Double click to delete
-    el.addEventListener('dblclick', () => {
-        state.items = state.items.filter(i => i.uid !== itemData.uid);
-        el.remove();
-        saveState();
-    });
-
-    DOM.workspace.appendChild(el);
-    if(itemData.zIndex > zIndexCounter) zIndexCounter = itemData.zIndex + 1;
-}
-
-let draggingEl = null, draggingItem = null;
-let dragStartX, dragStartY, initialItemX, initialItemY;
-
-function handleItemInteractionStart(e, itemData, el) {
-    e.stopPropagation();
-    
-    draggingEl = el;
-    draggingItem = itemData;
-    dragStartX = e.clientX;
-    dragStartY = e.clientY;
-    initialItemX = itemData.x;
-    initialItemY = itemData.y;
-    
-    itemData.zIndex = zIndexCounter++;
-    el.style.zIndex = itemData.zIndex;
-}
-
-window.addEventListener('mousemove', (e) => {
-    if (draggingEl && draggingItem) {
-        const dx = (e.clientX - dragStartX) / state.zoom;
-        const dy = (e.clientY - dragStartY) / state.zoom;
-        draggingItem.x = initialItemX + dx;
-        draggingItem.y = initialItemY + dy;
-        draggingEl.style.left = `${draggingItem.x}px`;
-        draggingEl.style.top = `${draggingItem.y}px`;
-    }
-});
-
-window.addEventListener('mouseup', () => {
-    if (draggingEl && draggingItem) {
-        if (state.snapToGrid) { 
-            draggingItem.x = Math.round(draggingItem.x / 10) * 10;
-            draggingItem.y = Math.round(draggingItem.y / 10) * 10;
-            draggingEl.style.left = `${draggingItem.x}px`;
-            draggingEl.style.top = `${draggingItem.y}px`;
+            list.appendChild(div);
+            nodes.push(nodeObj);
         }
-        draggingEl = null;
-        draggingItem = null;
-        saveState();
-    }
-});
 
-// --- Smart Spawning ---
-function spawnItem(item) {
-    const rect = DOM.container.getBoundingClientRect();
-    const centerX = (rect.width / 2 - state.panX) / state.zoom;
-    const centerY = (rect.height / 2 - state.panY) / state.zoom;
-    const workspaceCenter = 5000; 
+        data.forEach(addNode);
 
-    item.uid = Date.now().toString() + Math.random();
-    item.zIndex = zIndexCounter++;
+        // Blazing fast memory-only filter with Fuzzy Search and Auto-Highlight
+        function filterList(text) {
+            const searchTerms = text.toLowerCase().replace(/-/g, '').split(' ').filter(t => t.trim() !== '');
 
-    if (item.isBoard) {
-        // Drop board exactly center
-        item.x = workspaceCenter + centerX - (item.width / 2);
-        item.y = workspaceCenter + centerY - (item.height / 2);
-    } else {
-        item.x = workspaceCenter + centerX - (item.width / 2) + spawnOffsetPedal;
-        item.y = workspaceCenter + centerY - (item.height / 2) + spawnOffsetPedal;
-        spawnOffsetPedal = (spawnOffsetPedal + 20) % 100;
-    }
+            visibleNodes = [];
+            let count = 0;
 
-    state.items.push(item);
-    renderItem(item);
-    saveState();
-}
+            nodes.forEach(node => {
+                node.el.classList.remove('highlighted');
 
-// --- Search & UI Control ---
-let currentSearchIndex = -1;
-let currentResults = [];
+                // Compare against the cached string in memory (Instantaneous)
+                const matches = searchTerms.every(term => node.searchString.includes(term));
 
-function handleSearch(e) {
-    const query = e.target.value.toLowerCase().replace(/-/g, '').trim();
-    if (!query) {
-        closeSearch();
-        return;
-    }
+                // Hard cap at 50 to keep the DOM blazing fast
+                if ((searchTerms.length === 0 || matches) && count < 50) {
+                    node.el.style.display = '';
+                    visibleNodes.push(node);
+                    count++;
+                } else {
+                    node.el.style.display = 'none';
+                }
+            });
 
-    const tokens = query.split(/\s+/).filter(Boolean);
-    currentResults = searchCache.filter(p => tokens.every(token => p._searchTokens.some(pt => pt.includes(token)))).slice(0, 50);
+            list.scrollTop = 0; // Reset scroll on new search
 
-    renderSearchResults();
-    
-    if (currentResults.length > 0) {
-        currentSearchIndex = 0; 
-        highlightSearchItem();
-    } else {
-        DOM.searchResults.innerHTML = '<li class="list-group-item disabled dark-input text-muted">No pedals found</li>';
-        DOM.searchResults.classList.remove('d-none');
-    }
-}
-
-function renderSearchResults() {
-    DOM.searchResults.innerHTML = '';
-    DOM.searchResults.classList.remove('d-none');
-    
-    currentResults.forEach((res, idx) => {
-        const li = document.createElement('li');
-        li.className = 'list-group-item search-item px-3 py-2';
-        li.textContent = `${res.brand} - ${res.name}`;
-        li.dataset.idx = idx;
-        
-        li.addEventListener('mouseenter', () => {
-            currentSearchIndex = idx;
-            highlightSearchItem();
-            triggerPreview(`data/images/pedals/${res.image}`);
-        });
-        
-        li.addEventListener('click', () => {
-            addPedalFromData(res);
-            closeSearch();
-        });
-
-        DOM.searchResults.appendChild(li);
-    });
-}
-
-function highlightSearchItem() {
-    Array.from(DOM.searchResults.children).forEach((li, idx) => {
-        li.classList.toggle('active-item', idx === currentSearchIndex);
-    });
-    if(currentResults[currentSearchIndex]) {
-        triggerPreview(`data/images/pedals/${currentResults[currentSearchIndex].image}`);
-    }
-}
-
-function triggerPreview(src) {
-    clearTimeout(previewTimer);
-    previewTimer = setTimeout(() => {
-        DOM.previewImg.src = src;
-        DOM.previewOverlay.classList.remove('d-none');
-        DOM.previewOverlay.classList.add('d-flex');
-    }, 100); 
-}
-
-function closeSearch() {
-    DOM.searchResults.classList.add('d-none');
-    DOM.pedalSearch.value = '';
-    DOM.previewOverlay.classList.remove('d-flex');
-    DOM.previewOverlay.classList.add('d-none');
-    currentSearchIndex = -1;
-    clearTimeout(previewTimer);
-}
-
-function addPedalFromData(pedalData) {
-    spawnItem({
-        isBoard: false,
-        width: pedalData.width * 10,
-        height: pedalData.height * 10,
-        src: `data/images/pedals/${pedalData.image}`
-    });
-}
-
-// --- Event Listeners ---
-function setupEventListeners() {
-    DOM.pedalSearch.addEventListener('input', handleSearch);
-    
-    DOM.pedalSearch.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') closeSearch();
-        if (DOM.searchResults.classList.contains('d-none')) return;
-
-        if (e.key === 'ArrowDown') {
-            e.preventDefault();
-            currentSearchIndex = Math.min(currentSearchIndex + 1, currentResults.length - 1);
-            highlightSearchItem();
-        } else if (e.key === 'ArrowUp') {
-            e.preventDefault();
-            currentSearchIndex = Math.max(currentSearchIndex - 1, 0);
-            highlightSearchItem();
-        } else if (e.key === 'Enter') {
-            e.preventDefault();
-            if (currentSearchIndex >= 0 && currentResults[currentSearchIndex]) {
-                addPedalFromData(currentResults[currentSearchIndex]);
-                closeSearch();
+            // Auto-highlight the top result if typing
+            if (visibleNodes.length > 0 && text.trim() !== '') {
+                setHighlight(0, true);
+            } else {
+                activeIndex = -1;
+                if (onHighlight) onHighlight(null);
             }
         }
-    });
 
-    DOM.pedalSearch.addEventListener('blur', () => setTimeout(closeSearch, 200));
+        // Handles keyboard & mouse hovering
+        function setHighlight(index, scroll = true) {
+            if (visibleNodes.length === 0) return;
+            if (activeIndex >= 0 && activeIndex < visibleNodes.length) {
+                visibleNodes[activeIndex].el.classList.remove('highlighted');
+            }
 
-    document.getElementById('btn-nuke').addEventListener('click', () => {
-        state.items = [];
-        state.panX = 0; state.panY = 0; state.zoom = 1;
-        renderWorkspace();
-        saveState();
-    });
+            activeIndex = index;
+            if (activeIndex < 0) activeIndex = visibleNodes.length - 1;
+            if (activeIndex >= visibleNodes.length) activeIndex = 0;
 
-    DOM.snapToggle.addEventListener('change', (e) => {
-        state.snapToGrid = e.target.checked;
-        saveState();
-    });
+            const activeNode = visibleNodes[activeIndex];
+            activeNode.el.classList.add('highlighted');
 
-    // Handle predefined board select drop down
-    DOM.boardSelect.addEventListener('change', () => {
-        const bId = DOM.boardSelect.value;
-        const b = rawData.boards.find(x => x.id === bId);
-        if (b) {
-            spawnItem({
-                isBoard: true,
-                width: b.width * 10,
-                height: b.height * 10,
-                src: `data/images/boards/${b.image}`
-            });
-            DOM.boardSelect.value = ""; // reset after placing
+            if (scroll) activeNode.el.scrollIntoView({ block: 'nearest' });
+            if (onHighlight) onHighlight(activeNode.item);
         }
-    });
 
-    // Add Custom Board
-    document.getElementById('btn-custom-board').addEventListener('click', () => {
-        const w = parseFloat(document.getElementById('custom-board-w').value);
-        const h = parseFloat(document.getElementById('custom-board-h').value);
-        if (w > 0 && h > 0) {
-            spawnItem({
-                isBoard: true,
-                width: w * 10,
-                height: h * 10,
-                src: '' 
-            });
-            // Clear inputs
-            document.getElementById('custom-board-w').value = '';
-            document.getElementById('custom-board-h').value = '';
+        input.addEventListener('focus', () => {
+            list.classList.add('active');
+            input.value = '';
+            filterList('');
+        });
+
+        input.addEventListener('input', (e) => filterList(e.target.value));
+
+        // Keyboard Navigation
+        input.addEventListener('keydown', (e) => {
+            if (!list.classList.contains('active')) return;
+
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                setHighlight(activeIndex + 1);
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                setHighlight(activeIndex - 1);
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                if (activeIndex >= 0 && activeIndex < visibleNodes.length) {
+                    visibleNodes[activeIndex].el.onmousedown(e);
+                }
+            } else if (e.key === 'Escape') {
+                list.classList.remove('active');
+                input.blur();
+                if (onHighlight) onHighlight(null);
+            }
+        });
+
+        // Hide preview if mouse leaves the list completely
+        list.addEventListener('mouseleave', () => {
+            if (activeIndex >= 0 && activeIndex < visibleNodes.length) {
+                visibleNodes[activeIndex].el.classList.remove('highlighted');
+            }
+            activeIndex = -1;
+            if (onHighlight) onHighlight(null);
+        });
+
+        return { addNode };
+    }
+
+    // Initialize Board List
+    boardListManager = createListManager(
+        'board-search', 'board-list', state.boards,
+        b => b.name,
+        b => { setBoard(b); document.getElementById('board-search').value = b.name; }
+    );
+
+    let previewTimeout; // The magic debouncer!
+
+    // Initialize Pedal List with full scrolling and previews
+    createListManager(
+        'pedal-search', 'pedal-list', state.pedals,
+        p => `${p.brand} - ${p.name}`,
+        p => { addPedalToBoard(p); document.getElementById('pedal-search').value = ''; },
+        p => {
+            clearTimeout(previewTimeout); // Cancel previous load request
+            if (p) {
+                // Wait 100ms before doing the heavy lifting
+                previewTimeout = setTimeout(() => {
+                    previewImg.src = p.image;
+                    previewName.innerText = p.name;
+                    previewOverlay.classList.remove('hidden');
+                }, 100);
+            } else {
+                previewOverlay.classList.add('hidden');
+            }
+        }
+    );
+
+    // Close lists if clicking outside
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('#board-search') && !e.target.closest('#board-list')) {
+            document.getElementById('board-list').classList.remove('active');
+        }
+        if (!e.target.closest('#pedal-search') && !e.target.closest('#pedal-list')) {
+            document.getElementById('pedal-list').classList.remove('active');
+            previewOverlay.classList.add('hidden');
         }
     });
 }
 
-// Start App
-init();
+// --- EVENT LISTENERS ---
+function setupEventListeners() {
+    document.getElementById('custom-board-btn').addEventListener('click', () => {
+        const w = parseFloat(document.getElementById('custom-w').value);
+        const h = parseFloat(document.getElementById('custom-h').value);
+        if (w > 0 && h > 0) {
+            const customBoard = { id: 'custom_' + Date.now(), name: `Custom (${w}x${h} cm)`, width: w * 10, height: h * 10 };
+            state.boards.push(customBoard);
+            boardListManager.addNode(customBoard); // Inject new board into the UI list
+            setBoard(customBoard);
+            document.getElementById('board-search').value = customBoard.name;
+            document.getElementById('board-list').classList.remove('active');
+        } else {
+            alert("Please enter valid dimensions in cm.");
+        }
+    });
+
+    document.getElementById('clear-board-btn').addEventListener('click', clearPedals);
+
+    document.getElementById('canvas-container').addEventListener('wheel', (e) => {
+        e.preventDefault();
+        const zoomDelta = e.deltaY > 0 ? 0.9 : 1.1;
+        state.zoom = Math.max(0.2, Math.min(state.zoom * zoomDelta, 3));
+        updateTransform();
+        saveToLocalStorage();
+    }, {passive: false});
+}
+
+// --- BOARD LOGIC ---
+function setBoard(board) {
+    state.selectedBoard = board;
+    const boardEl = document.getElementById('board');
+    if (board) {
+        boardEl.classList.remove('empty-board');
+        boardEl.style.width = board.width + 'px';
+        boardEl.style.height = board.height + 'px';
+        boardEl.innerHTML = '';
+    } else {
+        boardEl.classList.add('empty-board');
+        boardEl.style.width = '';
+        boardEl.style.height = '';
+        boardEl.innerHTML = '<span class="board-placeholder">Select or create a board</span>';
+    }
+    renderPlacedPedals();
+    saveToLocalStorage();
+}
+
+function setupBoardPanning() {
+    let isPanning = false;
+    let startX, startY;
+    const container = document.getElementById('canvas-container');
+
+    container.addEventListener('mousedown', (e) => {
+        if (e.target === container || (e.target.closest('#board') && !e.target.closest('.pedal'))) {
+            isPanning = true;
+            startX = e.clientX - state.panX;
+            startY = e.clientY - state.panY;
+        }
+    });
+
+    window.addEventListener('mousemove', (e) => {
+        if (!isPanning) return;
+        state.panX = e.clientX - startX;
+        state.panY = e.clientY - startY;
+        updateTransform();
+    });
+
+    window.addEventListener('mouseup', () => {
+        if (isPanning) {
+            isPanning = false;
+            saveToLocalStorage();
+        }
+    });
+}
+
+function updateTransform() {
+    document.getElementById('board-wrapper').style.transform = `translate(${state.panX}px, ${state.panY}px) scale(${state.zoom})`;
+}
+
+// --- PEDAL RENDERING ---
+let highestZ = 10;
+
+function renderPlacedPedals() {
+    const boardEl = document.getElementById('board');
+    Array.from(boardEl.querySelectorAll('.pedal')).forEach(el => el.remove());
+
+    state.placedPedals.forEach(p => {
+        const pedalData = state.pedals.find(pd => pd.id === p.pedalId);
+        if (pedalData) renderPedalDOM(pedalData, p.x, p.y, p.instanceId);
+    });
+    updateSidebarList();
+}
+
+function addPedalToBoard(pedalData, savedX = null, savedY = null, instanceId = null) {
+    const id = instanceId || `pedal_${Date.now()}_${Math.floor(Math.random()*1000)}`;
+
+    let boardW = state.selectedBoard ? state.selectedBoard.width : document.getElementById('canvas-container').clientWidth;
+    let boardH = state.selectedBoard ? state.selectedBoard.height : document.getElementById('canvas-container').clientHeight;
+
+    const x = savedX !== null ? savedX : (boardW / 2) - (pedalData.width / 2);
+    const y = savedY !== null ? savedY : (boardH / 2) - (pedalData.height / 2);
+
+    if(!instanceId) {
+        state.placedPedals.push({ instanceId: id, pedalId: pedalData.id, x, y });
+        saveToLocalStorage();
+    }
+    renderPedalDOM(pedalData, x, y, id);
+    updateSidebarList();
+}
+
+function renderPedalDOM(pedalData, x, y, id) {
+    const el = document.createElement('div');
+    el.className = 'pedal';
+    el.id = id;
+    el.style.width = pedalData.width + 'px';
+    el.style.height = pedalData.height + 'px';
+    el.style.left = x + 'px';
+    el.style.top = y + 'px';
+    el.style.zIndex = ++highestZ;
+
+    const shortName = pedalData.name ? pedalData.name.split(' ')[0] : 'Pedal';
+    el.innerHTML = `<img src="${pedalData.image}" draggable="false" onerror="this.src='https://placehold.co/${pedalData.width}x${pedalData.height}/444/fff?text=${shortName}'">`;
+
+    el.addEventListener('dblclick', () => removePedal(id));
+    el.addEventListener('mousedown', () => el.style.zIndex = ++highestZ);
+
+    document.getElementById('board').appendChild(el);
+}
+
+// --- DRAG AND DROP ---
+let draggingEl = null;
+let startMouseX, startMouseY, startElLeft, startElTop;
+
+document.addEventListener('mousedown', (e) => {
+    if (e.button !== 0) return;
+    const pedalEl = e.target.closest('.pedal');
+    if (pedalEl) {
+        draggingEl = pedalEl;
+        startMouseX = e.clientX;
+        startMouseY = e.clientY;
+        startElLeft = parseFloat(draggingEl.style.left || 0);
+        startElTop = parseFloat(draggingEl.style.top || 0);
+    }
+});
+
+document.addEventListener('mousemove', (e) => {
+    if (!draggingEl) return;
+
+    let dx = (e.clientX - startMouseX) / state.zoom;
+    let dy = (e.clientY - startMouseY) / state.zoom;
+    let newLeft = startElLeft + dx;
+    let newTop = startElTop + dy;
+
+    if (document.getElementById('snap-grid').checked) {
+        newLeft = Math.round(newLeft / 10) * 10;
+        newTop = Math.round(newTop / 10) * 10;
+    }
+
+    draggingEl.style.left = newLeft + 'px';
+    draggingEl.style.top = newTop + 'px';
+});
+
+document.addEventListener('mouseup', () => {
+    if (draggingEl) {
+        const pState = state.placedPedals.find(p => p.instanceId === draggingEl.id);
+        if(pState) {
+            pState.x = parseFloat(draggingEl.style.left);
+            pState.y = parseFloat(draggingEl.style.top);
+        }
+        saveToLocalStorage();
+        draggingEl = null;
+    }
+});
+
+// --- UTILITIES ---
+function removePedal(instanceId) {
+    state.placedPedals = state.placedPedals.filter(p => p.instanceId !== instanceId);
+    const el = document.getElementById(instanceId);
+    if(el) el.remove();
+    updateSidebarList();
+    saveToLocalStorage();
+}
+
+function clearPedals() {
+    state.placedPedals = [];
+    Array.from(document.getElementById('board').querySelectorAll('.pedal')).forEach(el => el.remove());
+    updateSidebarList();
+    saveToLocalStorage();
+}
+
+function updateSidebarList() {
+    const list = document.getElementById('placed-pedals-list');
+    document.getElementById('pedal-count').innerText = state.placedPedals.length;
+    list.innerHTML = '';
+    state.placedPedals.forEach(p => {
+        const pData = state.pedals.find(pd => pd.id === p.pedalId);
+        if(pData) {
+            const li = document.createElement('li');
+            li.innerHTML = `<span>${pData.brand} - ${pData.name}</span><button class="remove-btn" onclick="removePedal('${p.instanceId}')">✕</button>`;
+            list.appendChild(li);
+        }
+    });
+}
+
+// --- STORAGE ---
+function saveToLocalStorage() {
+    localStorage.setItem('pedalboard_v4_state', JSON.stringify({
+        board: state.selectedBoard,
+        placedPedals: state.placedPedals,
+        panX: state.panX,
+        panY: state.panY,
+        zoom: state.zoom
+    }));
+}
+
+function loadFromLocalStorage() {
+    try {
+        const saved = localStorage.getItem('pedalboard_v4_state');
+        if (saved) {
+            const parsed = JSON.parse(saved);
+
+            if (parsed.zoom !== undefined) state.zoom = parsed.zoom;
+            if (parsed.panX !== undefined) state.panX = parsed.panX;
+            if (parsed.panY !== undefined) state.panY = parsed.panY;
+            updateTransform();
+
+            if (parsed.board) {
+                if (parsed.board.id && parsed.board.id.startsWith('custom_') && !state.boards.find(b => b.id === parsed.board.id)) {
+                    state.boards.push(parsed.board);
+                    if(boardListManager) boardListManager.addNode(parsed.board);
+                }
+                document.getElementById('board-search').value = parsed.board.name;
+                setBoard(parsed.board);
+            }
+
+            state.placedPedals = parsed.placedPedals || [];
+            renderPlacedPedals();
+        }
+    } catch (e) {
+        console.error("Save data corrupted. Resetting.");
+        localStorage.removeItem('pedalboard_v4_state');
+    }
+}
+
+window.addEventListener('DOMContentLoaded', init);
