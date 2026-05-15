@@ -9,6 +9,7 @@ const state = {
     panY: 0 
 };
 
+// Converts the pedal JSON schema to app schema
 function normalizePedals(raw) {
     if (!Array.isArray(raw)) return [];
     return raw.map(p => ({
@@ -17,8 +18,31 @@ function normalizePedals(raw) {
         brand: p.Brand || "Unknown",
         width: Math.round((p.Width || 2) * 25.4), 
         height: Math.round((p.Height || 4) * 25.4), 
-        image: './data/images/' + p.Image
+        image: './data/images/pedals/' + (p.Image || '')
     }));
+}
+
+// Converts the board JSON schema to app schema
+function normalizeBoards(raw) {
+    if (!Array.isArray(raw)) return [];
+    return raw.map(b => {
+        // Accept both 'name' and 'Name', prefer 'name' if present
+        const name = b.name || b.Name || 'Unnamed Board';
+        // Accept both 'width' and 'Width', prefer 'width' if present
+        const width = b.width !== undefined ? b.width : (b.Width !== undefined ? b.Width : 600);
+        const height = b.height !== undefined ? b.height : (b.Height !== undefined ? b.Height : 300);
+        // Accept both 'id' and 'ID', or generate one
+        const id = b.id || b.ID || (name + '_' + width + 'x' + height).toLowerCase().replace(/[^a-z0-9]/g, '_');
+        // Accept both 'image' and 'Image', or undefined
+        const image = b.image || b.Image || undefined;
+        return {
+            id,
+            name,
+            width,
+            height,
+            image
+        };
+    });
 }
 
 // --- INITIALIZATION ---
@@ -43,7 +67,10 @@ async function loadData() {
             fetch('./data/pedals.json').catch(err => null) 
         ]);
         
-        if (boardsRes && boardsRes.ok) state.boards = await boardsRes.json();
+        if (boardsRes && boardsRes.ok) {
+            const boardsRaw = await boardsRes.json();
+            state.boards = normalizeBoards(boardsRaw);
+        }
         if (pedalsRes && pedalsRes.ok) state.pedals = normalizePedals(await pedalsRes.json());
     } catch (e) {
         console.error("Fatal network error during loadData:", e);
@@ -71,16 +98,26 @@ function setupCustomLists() {
         function addNode(item) {
             const div = document.createElement('div');
             div.className = 'list-item';
-            const text = formatText(item);
+            let text;
+            try {
+                text = formatText(item);
+            } catch (e) {
+                console.error('Error formatting item for list:', item, e);
+                text = 'Unnamed';
+            }
+            if (typeof text !== 'string' || !text.trim()) {
+                console.warn('Item produced invalid text for list:', item, text);
+                text = 'Unnamed';
+            }
             div.innerText = text;
-            
-            const nodeObj = { 
-                el: div, 
+
+            const nodeObj = {
+                el: div,
                 item: item,
                 // CACHE THE TEXT IN MEMORY! No more reading from the DOM!
-                searchString: text.toLowerCase().replace(/-/g, '') 
+                searchString: text.toLowerCase().replace(/-/g, '')
             };
-            
+
             div.onmousedown = (e) => {
                 e.preventDefault();
                 onSelect(item);
@@ -88,9 +125,9 @@ function setupCustomLists() {
                 input.blur();
                 if (onHighlight) onHighlight(null);
             };
-            
+
             div.addEventListener('mouseenter', () => setHighlight(visibleNodes.indexOf(nodeObj), false));
-            
+
             list.appendChild(div);
             nodes.push(nodeObj);
         }
@@ -193,9 +230,24 @@ function setupCustomLists() {
 
     // Initialize Board List
     boardListManager = createListManager(
-        'board-search', 'board-list', state.boards, 
-        b => b.name, 
-        b => { setBoard(b); document.getElementById('board-search').value = b.name; }
+        'board-search', 'board-list', state.boards,
+        b => {
+            if (!b || typeof b !== 'object') {
+                console.warn('Malformed board object:', b);
+                return 'Unnamed Board';
+            }
+            const boardName = b.name || b.Name;
+            if (!boardName || typeof boardName !== 'string') {
+                console.warn('Board missing name:', b);
+                return 'Unnamed Board';
+            }
+            return boardName;
+        },
+        b => {
+            setBoard(b);
+            const boardName = b && (b.name || b.Name) ? (b.name || b.Name) : 'Unnamed Board';
+            document.getElementById('board-search').value = boardName;
+        }
     );
 
     let previewTimeout; // The magic debouncer!
