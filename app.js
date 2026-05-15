@@ -29,12 +29,20 @@ function normalizeBoards(raw) {
         // Accept both 'name' and 'Name', prefer 'name' if present
         const name = b.name || b.Name || 'Unnamed Board';
         // Accept both 'width' and 'Width', prefer 'width' if present
-        const width = b.width !== undefined ? b.width : (b.Width !== undefined ? b.Width : 600);
-        const height = b.height !== undefined ? b.height : (b.Height !== undefined ? b.Height : 300);
+        // Normalize width/height: if < 100, assume inches and convert to mm; else use as-is
+        let widthRaw = b.width !== undefined ? b.width : (b.Width !== undefined ? b.Width : 600);
+        let heightRaw = b.height !== undefined ? b.height : (b.Height !== undefined ? b.Height : 300);
+        const width = widthRaw < 100 ? Math.round(widthRaw * 25.4) : Math.round(widthRaw);
+        const height = heightRaw < 100 ? Math.round(heightRaw * 25.4) : Math.round(heightRaw);
         // Accept both 'id' and 'ID', or generate one
         const id = b.id || b.ID || (name + '_' + width + 'x' + height).toLowerCase().replace(/[^a-z0-9]/g, '_');
         // Accept both 'image' and 'Image', or undefined
-        const image = b.image || b.Image || undefined;
+        let image = b.image || b.Image || undefined;
+        if (image) {
+            // Remove any leading path or slashes
+            const filename = image.split(/[\\/]/).pop();
+            image = './data/images/boards/' + filename;
+        }
         return {
             id,
             name,
@@ -69,7 +77,9 @@ async function loadData() {
         
         if (boardsRes && boardsRes.ok) {
             const boardsRaw = await boardsRes.json();
+            console.log('Loaded boardsRaw:', boardsRaw);
             state.boards = normalizeBoards(boardsRaw);
+            console.log('Normalized boards:', state.boards);
         }
         if (pedalsRes && pedalsRes.ok) state.pedals = normalizePedals(await pedalsRes.json());
     } catch (e) {
@@ -316,16 +326,33 @@ function setupEventListeners() {
 function setBoard(board) {
     state.selectedBoard = board;
     const boardEl = document.getElementById('board');
+    console.log('Rendering board:', board);
     if (board) {
         boardEl.classList.remove('empty-board');
         boardEl.style.width = board.width + 'px';
         boardEl.style.height = board.height + 'px';
-        boardEl.innerHTML = ''; 
+        boardEl.innerHTML = '';
+        if (board.image) {
+            console.log('Setting board background image to:', board.image);
+            boardEl.style.backgroundImage = `url('${board.image}')`;
+            boardEl.style.backgroundSize = 'contain';
+            boardEl.style.backgroundRepeat = 'no-repeat';
+            boardEl.style.backgroundPosition = 'center';
+            boardEl.style.border = 'none';
+            boardEl.style.backgroundColor = 'transparent';
+        } else {
+            boardEl.style.backgroundImage = '';
+            boardEl.style.border = '';
+            boardEl.style.backgroundColor = '';
+        }
     } else {
         boardEl.classList.add('empty-board');
         boardEl.style.width = '';
         boardEl.style.height = '';
         boardEl.innerHTML = '<span class="board-placeholder">Select or create a board</span>';
+        boardEl.style.backgroundImage = '';
+        boardEl.style.border = '';
+        boardEl.style.backgroundColor = '';
     }
     renderPlacedPedals();
     saveToLocalStorage();
