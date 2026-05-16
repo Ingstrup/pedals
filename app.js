@@ -52,10 +52,14 @@ function setupEventListeners() {
 
     document.getElementById('canvas-container').addEventListener('wheel', (e) => {
         e.preventDefault();
-        const zoomDelta = e.deltaY > 0 ? 0.95 : 1.05;
-        state.zoom = Math.max(0.4, Math.min(state.zoom * zoomDelta, 3));
+        // Reduced to 2% jumps for much smoother zooming
+        const zoomDelta = e.deltaY > 0 ? 0.98 : 1.02;
+
+        // Capped between 20% (0.2) and 400% (4)
+        state.zoom = Math.max(0.2, Math.min(state.zoom * zoomDelta, 4));
+
         updateTransform();
-        saveToLocalStorage(); 
+        saveToLocalStorage();
     }, {passive: false});
     
     document.getElementById('fit-to-screen-btn').addEventListener('click', fitToScreen);
