@@ -400,7 +400,6 @@ function setupEventListeners() {
     });
 
     document.getElementById('clear-board-btn').addEventListener('click', clearPedals);
-    
     document.getElementById('canvas-container').addEventListener('wheel', (e) => {
         e.preventDefault();
         const zoomDelta = e.deltaY > 0 ? 0.99 : 1.01;
@@ -408,6 +407,7 @@ function setupEventListeners() {
         updateTransform();
         saveToLocalStorage(); 
     }, {passive: false});
+    document.getElementById('fit-to-screen-btn').addEventListener('click', fitToScreen);
 }
 
 // --- BOARD LOGIC ---
@@ -689,3 +689,21 @@ function setCanvasBgShade(color) {
 window.addEventListener('DOMContentLoaded', () => {
     setupBgShadeSelector();
 });
+
+// --- FIT TO SCREEN ---
+function fitToScreen() {
+    const container = document.getElementById('canvas-container');
+    const board = state.selectedBoard;
+    if (!container || !board) return;
+    const margin = 40; // px margin around the board
+    const cW = container.clientWidth;
+    const cH = container.clientHeight;
+    const scaleX = (cW - margin * 2) / board.width;
+    const scaleY = (cH - margin * 2) / board.height;
+    const zoom = Math.max(0.2, Math.min(scaleX, scaleY, 3));
+    state.zoom = zoom;
+    state.panX = (cW - board.width * zoom) / 2;
+    state.panY = (cH - board.height * zoom) / 2;
+    updateTransform();
+    saveToLocalStorage();
+}
