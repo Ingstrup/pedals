@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pedalboard Planner V8</title>
+    <title>Pedalboard Planner V9</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -22,7 +22,16 @@
         </div>
     </div>
 
-    <div class="control-group" style="flex-grow: 1; display:flex; flex-direction:column; overflow:hidden;">
+    <div id="board-info-panel" style="display: none; background: #222; padding: 12px; border-radius: 6px; margin-top: 10px; border-left: 4px solid #2a9fd6;">
+        <h4 id="info-name" style="margin: 0 0 5px 0; color: #fff;">Board Name</h4>
+        <div style="font-size: 0.85rem; color: #bbb; display: flex; justify-content: space-between;">
+            <span id="info-brand">Brand</span>
+            <span id="info-size">60 x 30 cm</span>
+        </div>
+        <button id="clear-selected-board-btn" class="danger" style="margin-top: 10px; width: 100%; padding: 6px;">Clear Pedals on Board</button>
+    </div>
+
+    <div class="control-group" style="flex-grow: 1; display:flex; flex-direction:column; overflow:hidden; margin-top: 10px;">
         <label for="pedal-search">2. Add a Pedal</label>
         <input type="text" id="pedal-search" placeholder="Search brand or name...">
         <div id="pedal-list" class="custom-list" style="flex-grow: 1; max-height: 40vh;"></div>
@@ -35,26 +44,27 @@
     <hr style="border: 1px solid #444; width: 100%; margin: 5px 0;">
 
     <div class="control-group" style="flex-grow: 1; display:flex; flex-direction:column; overflow:hidden;">
-        <h3>On Board (<span id="pedal-count">0</span>)</h3>
-        <ul id="placed-pedals-list"></ul>
+        <h3>On Canvas (<span id="pedal-count">0</span>)</h3>
+        <ul id="on-canvas-list"></ul>
+    </div>
+
+    <div style="text-align: center; color: #888; font-size: 0.85rem; margin-top: auto; padding-bottom: 10px;">
+        Zoom: <span id="zoom-readout">100%</span>
     </div>
 </div>
 
 <div id="main">
     <div id="toolbar">
-        <span style="margin-right:auto; color:#888;">Drag background to pan. Scroll to zoom. Double-click pedal to delete.</span>
+        <span style="margin-right:auto; color:#888;">Double-click pedal to delete. Scroll to zoom.</span>
         <button id="fit-to-screen-btn">Fit to screen</button>
         <button id="export-json-btn">Export JSON</button>
         <input type="file" id="import-json-input" accept="application/json" style="display:none">
         <button id="import-json-btn">Import JSON</button>
-        <button id="clear-board-btn" class="danger">Clear Board</button>
+        <button id="clear-board-btn" class="danger">Clear Canvas</button>
     </div>
 
     <div id="canvas-container">
         <div id="board-wrapper">
-            <div id="board" class="empty-board">
-                <span class="board-placeholder">Select or create a board</span>
-            </div>
         </div>
 
         <div id="preview-overlay" class="hidden">
@@ -63,11 +73,7 @@
         </div>
     </div>
 </div>
-<!-- Canvas Background Shade Selector -->
-<div id="bg-shade-selector"
-     style="display: flex; gap: 8px; justify-content: center; align-items: flex-end; margin-top: 18px; margin-bottom: 0;">
-    <!-- Shades will be injected by JS -->
-</div>
+<div id="bg-shade-selector" style="display: flex; gap: 8px; justify-content: center; align-items: flex-end; margin-top: 18px; margin-bottom: 0;"></div>
 <script src="app.js"></script>
 </body>
 </html>
