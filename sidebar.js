@@ -197,7 +197,7 @@ export function updateBoardInfoPanel() {
     
     panel.style.display = 'block';
     document.getElementById('info-name').textContent = b.name;
-    const originalBoard = state.boards.find(x => x.id === b.id);
+    const originalBoard = state.boardsById.get(b.id);
     document.getElementById('info-brand').textContent = originalBoard && originalBoard.brand ? originalBoard.brand : 'Custom/Misc';
     document.getElementById('info-size').textContent = `${(b.width/10).toFixed(1)} x ${(b.height/10).toFixed(1)} cm`;
 }
@@ -224,7 +224,7 @@ export function updateOnCanvasSidebar() {
     ul.className = 'pedal-sub-list';
     board.pedals.forEach(p => {
         totalCount++;
-        const pData = state.pedals.find(pd => pd.id === p.pedalId);
+        const pData = state.pedalsById.get(p.pedalId);
         if(pData) {
             const pli = document.createElement('li');
             pli.className = 'pedal-sub-item';
@@ -245,7 +245,7 @@ export function updateOnCanvasSidebar() {
       ul.className = 'pedal-sub-list';
       state.canvasPedals.forEach(p => {
         totalCount++;
-        const pData = state.pedals.find(pd => pd.id === p.pedalId);
+        const pData = state.pedalsById.get(p.pedalId);
         if(pData) {
             const pli = document.createElement('li');
             pli.className = 'pedal-sub-item';

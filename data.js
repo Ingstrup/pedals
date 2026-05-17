@@ -37,12 +37,14 @@ function normalizeBoards(raw) {
 
 export async function loadData() {
     try {
-        const [boardsRes, pedalsRes] = await Promise.all([ 
-            fetch('./data/boards.json').catch(err => null), 
-            fetch('./data/pedals.json').catch(err => null) 
+        const [boardsRes, pedalsRes] = await Promise.all([
+            fetch('./data/boards.json').catch(err => null),
+            fetch('./data/pedals.json').catch(err => null)
         ]);
         if (boardsRes && boardsRes.ok) state.boards = normalizeBoards(await boardsRes.json());
         if (pedalsRes && pedalsRes.ok) state.pedals = normalizePedals(await pedalsRes.json());
+        state.boardsById = new Map(state.boards.map(b => [b.id, b]));
+        state.pedalsById = new Map(state.pedals.map(p => [p.id, p]));
     } catch (e) {
         console.error("Fatal network error during loadData:", e);
     }

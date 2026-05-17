@@ -18,7 +18,7 @@ export function fitToScreen() {
             maxY = Math.max(maxY, b.y + b.height);
         });
         state.canvasPedals.forEach(p => {
-            const pData = state.pedals.find(pd => pd.id === p.pedalId);
+            const pData = state.pedalsById.get(p.pedalId);
             const pW = pData ? pData.width : 50;
             const pH = pData ? pData.height : 100;
             minX = Math.min(minX, p.x);
@@ -173,7 +173,7 @@ export function renderBoards() {
         });
 
         board.pedals.forEach(p => {
-            const pedalData = state.pedals.find(pd => pd.id === p.pedalId);
+            const pedalData = state.pedalsById.get(p.pedalId);
             if (pedalData) renderPedalDOM(pedalData, p.x, p.y, p.instanceId, boardDiv, board.id);
         });
 
@@ -187,7 +187,7 @@ export function renderBoards() {
     });
 
     state.canvasPedals.forEach(p => {
-        const pedalData = state.pedals.find(pd => pd.id === p.pedalId);
+        const pedalData = state.pedalsById.get(p.pedalId);
         if (pedalData) renderPedalDOM(pedalData, p.x, p.y, p.instanceId, wrapper, null);
     });
 

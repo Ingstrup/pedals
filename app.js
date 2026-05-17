@@ -27,7 +27,8 @@ function setupEventListeners() {
         if (w > 0 && h > 0) {
             const customBoard = { id: 'custom_' + Date.now(), name: `Custom (${w}x${h} cm)`, brand: 'Custom', width: w * 10, height: h * 10 };
             state.boards.push(customBoard);
-            boardListManager.addNode(customBoard); 
+            state.boardsById.set(customBoard.id, customBoard);
+            boardListManager.addNode(customBoard);
             addBoardToCanvas(customBoard); 
             document.getElementById('board-list').classList.remove('active');
         } else {
