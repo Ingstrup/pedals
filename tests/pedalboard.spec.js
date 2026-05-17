@@ -154,4 +154,28 @@ test.describe('Pedalboard Planner V8', () => {
     await expect(page.locator('.pedal')).toHaveCount(0);
   });
 
+  test('Sidebar lists all placed boards as top-level items in On Canvas section', async ({ page }) => {
+    // Place two different boards
+    await page.fill('#board-search', 'Aclam');
+    await page.click('#board-list .list-item:has-text("Smart Track L2 (Free)")');
+    // Add a pedal to this board so it counts as placed
+    await page.focus('#pedal-search');
+    await page.keyboard.type('boss ds1');
+    await page.keyboard.press('Enter');
+
+    // Add a second board
+    await page.fill('#board-search', 'Blackbird');
+    await page.click('#board-list .list-item:has-text("Tolex 1224")');
+    // Add a pedal to this board as well
+    await page.focus('#pedal-search');
+    await page.keyboard.type('boss ds1');
+    await page.keyboard.press('Enter');
+
+    // Now check the sidebar for both boards as top-level items
+    // (Assume new sidebar section will have id #on-canvas-list)
+    const boardItems = await page.locator('#on-canvas-list .board-list-item').allTextContents();
+    expect(boardItems.some(t => /Aclam.*Smart Track L2/.test(t))).toBeTruthy();
+    expect(boardItems.some(t => /Blackbird.*Tolex 1224/.test(t))).toBeTruthy();
+  });
+
 });
