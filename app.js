@@ -4,6 +4,7 @@ import { loadFromLocalStorage, saveToLocalStorage } from './storage.js';
 import { setupCustomLists, setupBgShadeSelector, boardListManager } from './sidebar.js';
 import { setupBoardPanning, fitToScreen, renderBoards, addBoardToCanvas, updateTransform, removeBoardFromCanvas, removePedal } from './canvas.js';
 import { setupDragAndDrop } from './dragDrop.js';
+import { setChainMode, isChainMode } from './chain.js';
 
 // Expose these two functions to the global window so the inline HTML onclicks in sidebar.js still work
 window.removeBoardFromCanvasGlobal = removeBoardFromCanvas;
@@ -63,6 +64,15 @@ function setupEventListeners() {
     }, {passive: false});
     
     document.getElementById('fit-to-screen-btn').addEventListener('click', fitToScreen);
+
+    const chainBtn = document.getElementById('chain-mode-btn');
+    chainBtn.addEventListener('click', () => {
+        const next = !isChainMode();
+        setChainMode(next);
+        chainBtn.classList.toggle('active', next);
+        chainBtn.textContent = next ? 'Exit chain mode' : 'Chain mode';
+        renderBoards();
+    });
 
     // Export JSON
     document.getElementById('export-json-btn').addEventListener('click', () => {

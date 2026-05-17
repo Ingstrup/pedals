@@ -1,5 +1,6 @@
 import { state } from './state.js';
 import { addBoardToCanvas, addPedalToBoard, removeBoardFromCanvas, removePedal, renderBoards } from './canvas.js';
+import { computeTotalCableLengthCm } from './chain.js';
 
 export let boardListManager = null;
 
@@ -257,6 +258,11 @@ export function updateOnCanvasSidebar() {
       list.appendChild(li);
   }
   document.getElementById('pedal-count').innerText = totalCount;
+  const cableEl = document.getElementById('cable-length-readout');
+  if (cableEl) {
+      const length = computeTotalCableLengthCm();
+      cableEl.textContent = length > 0 ? `~ ${length.toFixed(0)} cm of cable` : '';
+  }
 }
 
 const CANVAS_SHADES = [

@@ -1,6 +1,7 @@
 import { state } from './state.js';
 import { saveToLocalStorage } from './storage.js';
 import { updateBoardInfoPanel, updateOnCanvasSidebar } from './sidebar.js';
+import { isChainMode, handlePedalChainClick, getSelectedChainStart, renderChainOverlay } from './chain.js';
 
 export let highestZ = 10;
 
@@ -191,6 +192,8 @@ export function renderBoards() {
         if (pedalData) renderPedalDOM(pedalData, p.x, p.y, p.instanceId, wrapper, null);
     });
 
+    renderChainOverlay(wrapper);
+
     updateBoardInfoPanel();
     updateOnCanvasSidebar();
 }
@@ -229,7 +232,25 @@ export function renderPedalDOM(pedalData, x, y, instanceId, parentEl, boardId) {
     el.innerHTML = `<img src="${pedalData.image}" draggable="false" onerror="this.src='https://placehold.co/${pedalData.width}x${pedalData.height}/444/fff?text=${shortName}'">`;
     
     el.addEventListener('dblclick', () => removePedal(instanceId));
-    el.addEventListener('mousedown', () => el.style.zIndex = ++highestZ);
+    el.addEventListener('mousedown', (e) => {
+        el.style.zIndex = ++highestZ;
+        // In chain mode a click on a pedal should connect, not drag. Stop the bubbling
+        // mousedown from reaching the document-level drag handler.
+        if (isChainMode()) {
+            e.stopPropagation();
+            e.preventDefault();
+        }
+    });
+    el.addEventListener('click', (e) => {
+        if (!isChainMode()) return;
+        e.stopPropagation();
+        handlePedalChainClick(instanceId, e.shiftKey);
+        saveToLocalStorage();
+        renderBoards();
+    });
+    if (isChainMode() && getSelectedChainStart() === instanceId) {
+        el.classList.add('chain-selected');
+    }
     parentEl.appendChild(el);
 }
 
