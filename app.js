@@ -1,7 +1,7 @@
 import { state } from './state.js';
 import { loadData } from './data.js';
 import { loadFromLocalStorage, saveToLocalStorage } from './storage.js';
-import { setupCustomLists, setupBgShadeSelector, boardListManager } from './sidebar.js';
+import { setupCustomLists, setupBgShadeSelector, boardListManager, getPlacedPedalCounts } from './sidebar.js';
 import { setupBoardPanning, fitToScreen, renderBoards, addBoardToCanvas, updateTransform, removeBoardFromCanvas, removePedal } from './canvas.js';
 import { setupDragAndDrop } from './dragDrop.js';
 
@@ -78,6 +78,40 @@ function setupEventListeners() {
         const a = document.createElement('a');
         a.href = url;
         a.download = 'pedalboard-export.json';
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
+    });
+
+    document.getElementById('export-shopping-list-btn').addEventListener('click', () => {
+        const counts = getPlacedPedalCounts();
+        if (counts.size === 0) {
+            alert('No pedals on the canvas to export.');
+            return;
+        }
+        const csvEscape = (s) => /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+        const rows = [['Brand', 'Name', 'Quantity', 'Unit Price', 'Subtotal']];
+        let grandTotal = 0;
+        const sorted = [...counts.entries()].sort((a, b) => {
+            const pa = state.pedals.find(p => p.id === a[0]);
+            const pb = state.pedals.find(p => p.id === b[0]);
+            return ((pa && pa.brand) || '').localeCompare((pb && pb.brand) || '');
+        });
+        for (const [pedalId, qty] of sorted) {
+            const p = state.pedals.find(pd => pd.id === pedalId);
+            if (!p) continue;
+            const price = p.price || 0;
+            const subtotal = price * qty;
+            grandTotal += subtotal;
+            rows.push([p.brand, p.name, String(qty), String(price), String(subtotal)]);
+        }
+        rows.push(['', '', '', 'Total', String(grandTotal)]);
+        const csv = rows.map(r => r.map(csvEscape).join(',')).join('\r\n');
+        const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'pedalboard-shopping-list.csv';
         document.body.appendChild(a);
         a.click();
         setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);

@@ -44,7 +44,7 @@
     <hr style="border: 1px solid #444; width: 100%; margin: 5px 0;">
 
     <div class="control-group" style="flex-grow: 1; display:flex; flex-direction:column; overflow:hidden;">
-        <h3>On Canvas (<span id="pedal-count">0</span>)</h3>
+        <h3>On Canvas (<span id="pedal-count">0</span>) <span id="pedal-total-cost" style="font-weight: normal; color: #aaa; font-size: 0.85rem;"></span></h3>
         <ul id="on-canvas-list"></ul>
     </div>
 
@@ -58,6 +58,7 @@
         <span style="margin-right:auto; color:#888;">Double-click pedal to delete. Scroll to zoom.</span>
         <button id="fit-to-screen-btn">Fit to screen</button>
         <button id="export-json-btn">Export JSON</button>
+        <button id="export-shopping-list-btn">Export shopping list</button>
         <input type="file" id="import-json-input" accept="application/json" style="display:none">
         <button id="import-json-btn">Import JSON</button>
         <button id="clear-board-btn" class="danger">Clear Canvas</button>

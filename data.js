@@ -11,6 +11,7 @@ function normalizePedals(raw) {
             brand: p.Brand || "Unknown",
             width: Math.round((p.Width || 2) * 25.4),
             height: Math.round((p.Height || 4) * 25.4),
+            price: Number.isFinite(Number(p.Price)) ? Number(p.Price) : 0,
             image: './data/images/pedals/' + (p.Image || '')
         };
     });

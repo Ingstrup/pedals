@@ -202,11 +202,23 @@ export function updateBoardInfoPanel() {
     document.getElementById('info-size').textContent = `${(b.width/10).toFixed(1)} x ${(b.height/10).toFixed(1)} cm`;
 }
 
+export function getPlacedPedalCounts() {
+    const counts = new Map();
+    const tally = (p) => {
+        const c = counts.get(p.pedalId) || 0;
+        counts.set(p.pedalId, c + 1);
+    };
+    state.placedBoards.forEach(b => b.pedals.forEach(tally));
+    state.canvasPedals.forEach(tally);
+    return counts;
+}
+
 export function updateOnCanvasSidebar() {
   const list = document.getElementById('on-canvas-list');
   if (!list) return;
   list.innerHTML = '';
   let totalCount = 0;
+  let totalCost = 0;
 
   state.placedBoards.forEach(board => {
     const li = document.createElement('li');
@@ -226,6 +238,7 @@ export function updateOnCanvasSidebar() {
         totalCount++;
         const pData = state.pedals.find(pd => pd.id === p.pedalId);
         if(pData) {
+            totalCost += pData.price || 0;
             const pli = document.createElement('li');
             pli.className = 'pedal-sub-item';
             pli.innerHTML = `<span>↳ ${pData.brand} ${pData.name}</span> <button class="remove-btn" onclick="event.stopPropagation(); window.removePedalGlobal('${p.instanceId}')">✕</button>`;
@@ -247,6 +260,7 @@ export function updateOnCanvasSidebar() {
         totalCount++;
         const pData = state.pedals.find(pd => pd.id === p.pedalId);
         if(pData) {
+            totalCost += pData.price || 0;
             const pli = document.createElement('li');
             pli.className = 'pedal-sub-item';
             pli.innerHTML = `<span>↳ ${pData.brand} ${pData.name}</span> <button class="remove-btn" onclick="event.stopPropagation(); window.removePedalGlobal('${p.instanceId}')">✕</button>`;
@@ -257,6 +271,8 @@ export function updateOnCanvasSidebar() {
       list.appendChild(li);
   }
   document.getElementById('pedal-count').innerText = totalCount;
+  const costEl = document.getElementById('pedal-total-cost');
+  if (costEl) costEl.textContent = totalCost > 0 ? `~ ${totalCost.toLocaleString()}` : '';
 }
 
 const CANVAS_SHADES = [
