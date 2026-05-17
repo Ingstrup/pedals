@@ -1,5 +1,6 @@
 import { state } from './state.js';
 import { addBoardToCanvas, addPedalToBoard, removeBoardFromCanvas, removePedal, renderBoards } from './canvas.js';
+import { PEDAL_TYPES } from './data.js';
 
 export let boardListManager = null;
 
@@ -85,9 +86,14 @@ export function setupCustomLists() {
             setupObserver();
         }
 
+        let extraFilter = null;
+
         function filterList(text) {
             const searchTerms = text.toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/).filter(t => t);
-            filteredNodes = nodes.filter(node => searchTerms.every(term => node.searchString.includes(term)));
+            filteredNodes = nodes.filter(node => {
+                if (extraFilter && !extraFilter(node.item)) return false;
+                return searchTerms.every(term => node.searchString.includes(term));
+            });
             clearList();
             renderNextChunk();
             if (filteredNodes.length > 0 && text.trim() !== '') setHighlight(0, true);
@@ -130,12 +136,18 @@ export function setupCustomLists() {
         });
 
         filterList('');
-        return { addNode: (item) => {
-            let text = formatText(item);
-            let searchString = searchKeys.map(key => item[key] || '').join(' ').toLowerCase().replace(/[^a-z0-9\s]/g, '');
-            nodes.push({ item, searchString, text, el: null });
-            filterList(input.value || '');
-        }};
+        return {
+            addNode: (item) => {
+                let text = formatText(item);
+                let searchString = searchKeys.map(key => item[key] || '').join(' ').toLowerCase().replace(/[^a-z0-9\s]/g, '');
+                nodes.push({ item, searchString, text, el: null });
+                filterList(input.value || '');
+            },
+            setExtraFilter: (pred) => {
+                extraFilter = pred;
+                filterList(input.value || '');
+            }
+        };
     }
 
     boardListManager = createListManager(
@@ -161,11 +173,11 @@ export function setupCustomLists() {
         }
     );
 
-    let previewTimeout; 
-    createListManager(
-        'pedal-search', 'pedal-list', state.pedals, 
-        p => `${p.brand} - ${p.name}`, 
-        ['brand', 'name'], 
+    let previewTimeout;
+    const pedalListManager = createListManager(
+        'pedal-search', 'pedal-list', state.pedals,
+        p => `${p.brand} - ${p.name}`,
+        ['brand', 'name'],
         p => { addPedalToBoard(p); },
         p => {
             clearTimeout(previewTimeout);
@@ -186,6 +198,29 @@ export function setupCustomLists() {
     document.addEventListener('click', (e) => {
         if (!e.target.closest('#board-search') && !e.target.closest('#board-list')) { document.getElementById('board-list').classList.remove('active'); previewOverlay.classList.add('hidden'); boardPreviewDimensions.style.display = 'none'; }
         if (!e.target.closest('#pedal-search') && !e.target.closest('#pedal-list')) { document.getElementById('pedal-list').classList.remove('active'); previewOverlay.classList.add('hidden'); boardPreviewDimensions.style.display = 'none'; }
+    });
+
+    setupPedalTypeFilter(pedalListManager);
+}
+
+function setupPedalTypeFilter(pedalListManager) {
+    const host = document.getElementById('pedal-type-filter');
+    if (!host) return;
+    const LABELS = { drive: 'Drive', mod: 'Mod', delay: 'Delay', reverb: 'Reverb', utility: 'Utility', other: 'Other' };
+    const TYPES = [{ id: null, label: 'All' }, ...PEDAL_TYPES.map(id => ({ id, label: LABELS[id] || id }))];
+    let active = null;
+    TYPES.forEach(t => {
+        const chip = document.createElement('button');
+        chip.type = 'button';
+        chip.className = 'pedal-type-chip' + (t.id === active ? ' active' : '');
+        chip.textContent = t.label;
+        chip.dataset.typeId = t.id || '';
+        chip.addEventListener('click', () => {
+            active = t.id;
+            host.querySelectorAll('.pedal-type-chip').forEach(c => c.classList.toggle('active', c.dataset.typeId === (t.id || '')));
+            pedalListManager.setExtraFilter(active ? (p => p.type === active) : null);
+        });
+        host.appendChild(chip);
     });
 }
 

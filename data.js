@@ -1,5 +1,25 @@
 import { state } from './state.js';
 
+export const PEDAL_TYPES = ['drive', 'mod', 'delay', 'reverb', 'utility', 'other'];
+
+// If a pedal's JSON doesn't carry a `Type` field, infer one from its name.
+// Keep this list narrow — false positives are worse than a fallback to "other".
+function inferType(rawType, name = '') {
+    if (typeof rawType === 'string' && rawType.trim()) {
+        const norm = rawType.toLowerCase().trim();
+        if (PEDAL_TYPES.includes(norm)) return norm;
+        if (/(overdrive|distortion|fuzz|boost)/.test(norm)) return 'drive';
+        if (/(chorus|flanger|phaser|tremolo|vibrato|rotary|modulation)/.test(norm)) return 'mod';
+    }
+    const n = name.toLowerCase();
+    if (/\b(od|drive|overdrive|distortion|fuzz|boost|gain)\b/.test(n)) return 'drive';
+    if (/\b(chorus|flanger|phaser|tremolo|trem|vibe|vibrato|leslie|rotary)\b/.test(n)) return 'mod';
+    if (/\b(delay|echo)\b/.test(n)) return 'delay';
+    if (/\b(reverb|verb|hall|plate|spring)\b/.test(n)) return 'reverb';
+    if (/\b(tuner|buffer|loop|looper|switcher|volume|noise gate|gate)\b/.test(n)) return 'utility';
+    return 'other';
+}
+
 function normalizePedals(raw) {
     if (!Array.isArray(raw)) return [];
     return raw.map(p => {
@@ -9,6 +29,7 @@ function normalizePedals(raw) {
             id: brand + '_' + name,
             name: p.Name || "Unknown",
             brand: p.Brand || "Unknown",
+            type: inferType(p.Type, p.Name),
             width: Math.round((p.Width || 2) * 25.4),
             height: Math.round((p.Height || 4) * 25.4),
             image: './data/images/pedals/' + (p.Image || '')
