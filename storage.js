@@ -1,9 +1,12 @@
 import { state } from './state.js';
 import { updateTransform, renderBoards } from './canvas.js';
 
-export function saveToLocalStorage() {
+const SAVE_DEBOUNCE_MS = 200;
+let saveTimer = null;
+
+function writeNow() {
     localStorage.setItem('pedalboard_v4_state', JSON.stringify({
-        selectedBoardId: state.selectedBoardId, 
+        selectedBoardId: state.selectedBoardId,
         placedBoards: state.placedBoards,
         canvasPedals: state.canvasPedals,
         panX: state.panX,
@@ -11,6 +14,26 @@ export function saveToLocalStorage() {
         zoom: state.zoom
     }));
 }
+
+export function saveToLocalStorage() {
+    if (saveTimer !== null) clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => {
+        saveTimer = null;
+        writeNow();
+    }, SAVE_DEBOUNCE_MS);
+}
+
+export function flushSaveToLocalStorage() {
+    if (saveTimer !== null) {
+        clearTimeout(saveTimer);
+        saveTimer = null;
+        writeNow();
+    }
+}
+
+// Make sure a pending save is flushed before the page goes away.
+window.addEventListener('beforeunload', flushSaveToLocalStorage);
+window.addEventListener('pagehide', flushSaveToLocalStorage);
 
 export function loadFromLocalStorage() {
     try {
