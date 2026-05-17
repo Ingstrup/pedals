@@ -107,19 +107,20 @@ function setupCustomLists() {
         previewOverlay.appendChild(boardPreviewDimensions);
     }
 
-    // Reusable factory for highly performant lists
+    // --- Infinite Scrolling List Manager ---
     function createListManager(inputId, listId, data, formatText, onSelect, onHighlight) {
         const input = document.getElementById(inputId);
         const list = document.getElementById(listId);
-        
         const nodes = [];
-        let visibleNodes = [];
+        let filteredNodes = [];
+        let renderedCount = 0;
         let activeIndex = -1;
+        const CHUNK_SIZE = 50;
+        let observer = null;
+        let sentinel = null;
 
-        // Build the DOM once
-        function addNode(item) {
-            const div = document.createElement('div');
-            div.className = 'list-item';
+        // Build all node objects (but not DOM nodes)
+        data.forEach(item => {
             let text;
             try {
                 text = formatText(item);
@@ -131,58 +132,70 @@ function setupCustomLists() {
                 console.warn('Item produced invalid text for list:', item, text);
                 text = 'Unnamed';
             }
-            div.innerText = text;
+            nodes.push({
+                item,
+                searchString: text.toLowerCase().replace(/-/g, ''),
+                text,
+                el: null // Will be created on demand
+            });
+        });
 
-            const nodeObj = {
-                el: div,
-                item: item,
-                // CACHE THE TEXT IN MEMORY! No more reading from the DOM!
-                searchString: text.toLowerCase().replace(/-/g, '')
-            };
-
+        function createNodeEl(nodeObj) {
+            if (nodeObj.el) return nodeObj.el;
+            const div = document.createElement('div');
+            div.className = 'list-item';
+            div.innerText = nodeObj.text;
             div.onmousedown = (e) => {
                 e.preventDefault();
-                onSelect(item);
+                onSelect(nodeObj.item);
                 list.classList.remove('active');
                 input.blur();
                 if (onHighlight) onHighlight(null);
             };
-
-            div.addEventListener('mouseenter', () => setHighlight(visibleNodes.indexOf(nodeObj), false));
-
-            list.appendChild(div);
-            nodes.push(nodeObj);
+            div.addEventListener('mouseenter', () => setHighlight(filteredNodes.indexOf(nodeObj), false));
+            nodeObj.el = div;
+            return div;
         }
 
-        data.forEach(addNode);
+        function clearList() {
+            list.innerHTML = '';
+            renderedCount = 0;
+            activeIndex = -1;
+            if (observer && sentinel) observer.unobserve(sentinel);
+            sentinel = document.createElement('div');
+            sentinel.className = 'list-sentinel';
+            list.appendChild(sentinel);
+        }
 
-        // Blazing fast memory-only filter
+        function setupObserver() {
+            if (observer) observer.disconnect();
+            observer = new IntersectionObserver(entries => {
+                if (entries[0].isIntersecting && renderedCount < filteredNodes.length) {
+                    renderNextChunk();
+                }
+            }, { root: list, threshold: 0.1 });
+            if (sentinel) observer.observe(sentinel);
+        }
+
+        function renderNextChunk() {
+            const end = Math.min(renderedCount + CHUNK_SIZE, filteredNodes.length);
+            for (let i = renderedCount; i < end; ++i) {
+                list.insertBefore(createNodeEl(filteredNodes[i]), sentinel);
+            }
+            renderedCount = end;
+            // Always re-attach observer to the current sentinel
+            setupObserver();
+        }
+
         function filterList(text) {
             const searchTerms = text.toLowerCase().replace(/-/g, '').split(' ').filter(t => t.trim() !== '');
-            
-            visibleNodes = [];
-            let count = 0;
-
-            nodes.forEach(node => {
-                node.el.classList.remove('highlighted'); 
-                
-                // Compare against the cached string in memory (Instantaneous)
-                const matches = searchTerms.every(term => node.searchString.includes(term));
-                
-                // Hard cap at 50 to keep the DOM blazing fast
-                if ((searchTerms.length === 0 || matches) && count < 50) {
-                    node.el.style.display = '';
-                    visibleNodes.push(node);
-                    count++;
-                } else {
-                    node.el.style.display = 'none';
-                }
-            });
-            
-            list.scrollTop = 0; 
-            
+            filteredNodes = nodes.filter(node =>
+                searchTerms.every(term => node.searchString.includes(term))
+            );
+            clearList();
+            renderNextChunk();
             // Auto-highlight the top result if typing
-            if (visibleNodes.length > 0 && text.trim() !== '') {
+            if (filteredNodes.length > 0 && text.trim() !== '') {
                 setHighlight(0, true);
             } else {
                 activeIndex = -1;
@@ -192,20 +205,19 @@ function setupCustomLists() {
 
         // Handles keyboard & mouse hovering
         function setHighlight(index, scroll = true) {
-            if (visibleNodes.length === 0) return;
-            if (activeIndex >= 0 && activeIndex < visibleNodes.length) {
-                visibleNodes[activeIndex].el.classList.remove('highlighted');
+            if (filteredNodes.length === 0) return;
+            if (activeIndex >= 0 && activeIndex < renderedCount && filteredNodes[activeIndex].el) {
+                filteredNodes[activeIndex].el.classList.remove('highlighted');
             }
-            
             activeIndex = index;
-            if (activeIndex < 0) activeIndex = visibleNodes.length - 1;
-            if (activeIndex >= visibleNodes.length) activeIndex = 0;
-            
-            const activeNode = visibleNodes[activeIndex];
-            activeNode.el.classList.add('highlighted');
-            
-            if (scroll) activeNode.el.scrollIntoView({ block: 'nearest' });
-            if (onHighlight) onHighlight(activeNode.item);
+            if (activeIndex < 0) activeIndex = renderedCount - 1;
+            if (activeIndex >= renderedCount) activeIndex = 0;
+            const activeNode = filteredNodes[activeIndex];
+            if (activeNode && activeNode.el) {
+                activeNode.el.classList.add('highlighted');
+                if (scroll) activeNode.el.scrollIntoView({ block: 'nearest' });
+                if (onHighlight) onHighlight(activeNode.item);
+            }
         }
 
         input.addEventListener('focus', () => { 
@@ -213,13 +225,11 @@ function setupCustomLists() {
             input.value = ''; 
             filterList(''); 
         });
-        
         input.addEventListener('input', (e) => filterList(e.target.value));
 
         // Keyboard Navigation
         input.addEventListener('keydown', (e) => {
             if (!list.classList.contains('active')) return;
-            
             if (e.key === 'ArrowDown') {
                 e.preventDefault();
                 setHighlight(activeIndex + 1);
@@ -228,8 +238,8 @@ function setupCustomLists() {
                 setHighlight(activeIndex - 1);
             } else if (e.key === 'Enter') {
                 e.preventDefault();
-                if (activeIndex >= 0 && activeIndex < visibleNodes.length) {
-                    visibleNodes[activeIndex].el.onmousedown(e);
+                if (activeIndex >= 0 && activeIndex < renderedCount && filteredNodes[activeIndex].el) {
+                    filteredNodes[activeIndex].el.onmousedown(e);
                 }
             } else if (e.key === 'Escape') {
                 list.classList.remove('active');
@@ -238,16 +248,52 @@ function setupCustomLists() {
             }
         });
 
+        // Infinite scroll: observe sentinel
+        function setupObserver() {
+            if (observer) observer.disconnect();
+            observer = new IntersectionObserver(entries => {
+                if (entries[0].isIntersecting && renderedCount < filteredNodes.length) {
+                    renderNextChunk();
+                }
+            }, { root: list, threshold: 0.1 });
+            if (sentinel) observer.observe(sentinel);
+        }
+
         // Hide preview if mouse leaves the list completely
         list.addEventListener('mouseleave', () => {
-            if (activeIndex >= 0 && activeIndex < visibleNodes.length) {
-                visibleNodes[activeIndex].el.classList.remove('highlighted');
+            if (activeIndex >= 0 && activeIndex < renderedCount && filteredNodes[activeIndex].el) {
+                filteredNodes[activeIndex].el.classList.remove('highlighted');
             }
             activeIndex = -1;
             if (onHighlight) onHighlight(null);
         });
 
-        return { addNode };
+        // Initial filter and observer setup
+        filterList('');
+        setupObserver();
+
+        return { addNode: (item) => {
+            // For custom boards: add to nodes and filteredNodes, then rerun filter
+            let text;
+            try {
+                text = formatText(item);
+            } catch (e) {
+                console.error('Error formatting item for list:', item, e);
+                text = 'Unnamed';
+            }
+            if (typeof text !== 'string' || !text.trim()) {
+                console.warn('Item produced invalid text for list:', item, text);
+                text = 'Unnamed';
+            }
+            const nodeObj = {
+                item,
+                searchString: text.toLowerCase().replace(/-/g, ''),
+                text,
+                el: null
+            };
+            nodes.push(nodeObj);
+            filterList(input.value || '');
+        }};
     }
 
     // Initialize Board List
