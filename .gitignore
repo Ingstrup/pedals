@@ -1,5 +1,3 @@
-data/images/
-data
-todo.md
-requirements.md
+.ignore/
+data/
 test-results/
