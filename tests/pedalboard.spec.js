@@ -71,5 +71,87 @@ test.describe('Pedalboard Planner V8', () => {
     await expect(page.locator('.pedal')).toHaveCount(0);
   });
 
+  test('Export structure nests pedals under board and includes positions', async ({ page, context }) => {
+    // Add a pedal
+    await page.focus('#pedal-search');
+    await page.keyboard.type('boss ds1');
+    await page.keyboard.press('Enter');
+    const pedal = page.locator('.pedal').first();
+    await expect(pedal).toBeVisible();
+    // Move pedal to a known position
+    const { x, y } = await pedal.boundingBox();
+    await pedal.hover();
+    await page.mouse.down();
+    await page.mouse.move(x + 50, y + 30);
+    await page.mouse.up();
+    // Export JSON
+    const [download] = await Promise.all([
+      page.waitForEvent('download'),
+      page.click('#export-json-btn'),
+    ]);
+    const path = await download.path();
+    const fs = require('fs');
+    const data = fs.readFileSync(path, 'utf8');
+    const obj = JSON.parse(data);
+    // Structure checks
+    expect(obj.board).toBeDefined();
+    expect(Array.isArray(obj.board.pedals)).toBeTruthy();
+    expect(obj.board.pedals.length).toBeGreaterThan(0);
+    expect(obj.board.pedals[0].x).toBeDefined();
+    expect(obj.board.pedals[0].y).toBeDefined();
+    expect(obj.placedPedals).toBeUndefined();
+  });
+
+  test('Pedal position is restored after import', async ({ page }) => {
+    // Add a pedal and move it
+    await page.focus('#pedal-search');
+    await page.keyboard.type('boss ds1');
+    await page.keyboard.press('Enter');
+    const pedal = page.locator('.pedal').first();
+    await expect(pedal).toBeVisible();
+    // Move pedal to a known position
+    const { x, y } = await pedal.boundingBox();
+    await pedal.hover();
+    await page.mouse.down();
+    await page.mouse.move(x + 80, y + 40);
+    await page.mouse.up();
+    // Get logical position (style.left/top)
+    const leftBefore = await pedal.evaluate(el => parseFloat(el.style.left));
+    const topBefore = await pedal.evaluate(el => parseFloat(el.style.top));
+    // Export JSON
+    const [download] = await Promise.all([
+      page.waitForEvent('download'),
+      page.click('#export-json-btn'),
+    ]);
+    const path = await download.path();
+    // Clear board
+    await page.click('#clear-board-btn');
+    await expect(page.locator('.pedal')).toHaveCount(0);
+    // Import JSON
+    const importInput = await page.$('#import-json-input');
+    await importInput.setInputFiles(path);
+    // Wait for pedal to reappear
+    const pedalAfter = page.locator('.pedal').first();
+    await expect(pedalAfter).toBeVisible();
+    // Get logical position after import
+    const leftAfter = await pedalAfter.evaluate(el => parseFloat(el.style.left));
+    const topAfter = await pedalAfter.evaluate(el => parseFloat(el.style.top));
+    // Should be the same (allowing for rounding)
+    expect(Math.abs(leftAfter - leftBefore)).toBeLessThanOrEqual(2);
+    expect(Math.abs(topAfter - topBefore)).toBeLessThanOrEqual(2);
+  });
+
+  test('Sidebar X removes pedal', async ({ page }) => {
+    // Add a pedal
+    await page.focus('#pedal-search');
+    await page.keyboard.type('boss ds1');
+    await page.keyboard.press('Enter');
+    await expect(page.locator('.pedal')).toHaveCount(1);
+    // Find the X button in the sidebar and click it
+    const xBtn = page.locator('#placed-pedals-list .remove-btn').first();
+    await xBtn.click();
+    // Pedal should be removed
+    await expect(page.locator('.pedal')).toHaveCount(0);
+  });
 
 });

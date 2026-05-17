@@ -123,4 +123,50 @@ test.describe('Pedalboard Planner Core Flows', () => {
     expect(Math.abs(boardCenterY - containerCenterY)).toBeLessThanOrEqual(50);
   });
 
+  test('Export/Import JSON round-trip only saves layout references and restores correctly', async ({ page, context }) => {
+    // Setup: create a board and add a pedal
+    await page.fill('#custom-w', '60');
+    await page.fill('#custom-h', '30');
+    await page.click('#custom-board-btn');
+    await page.focus('#pedal-search');
+    await page.keyboard.type('boss ds1');
+    await page.keyboard.press('Enter');
+    await expect(page.locator('.pedal')).toHaveCount(1);
+
+    // Export JSON
+    const [download] = await Promise.all([
+      page.waitForEvent('download'),
+      page.click('#export-json-btn'),
+    ]);
+    const path = await download.path();
+    const fs = require('fs');
+    const data = fs.readFileSync(path, 'utf8');
+    const obj = JSON.parse(data);
+
+    // Should NOT contain all pedal or board data
+    expect(obj.pedals).toBeUndefined();
+    expect(obj.boards).toBeUndefined();
+    // Should contain placedPedals and board reference only
+    expect(Array.isArray(obj.placedPedals)).toBeTruthy();
+    expect(obj.placedPedals.length).toBeGreaterThan(0);
+    expect(obj.board).toBeDefined();
+    expect(typeof obj.board.id).toBe('string');
+    // Should only reference pedalId/model, not full pedal objects
+    expect(typeof obj.placedPedals[0].pedalId).toBe('string');
+    expect(obj.placedPedals[0].brand).toBeUndefined();
+    expect(obj.placedPedals[0].name).toBeUndefined();
+
+    // Clear the board (simulate wipe)
+    await page.click('#clear-board-btn');
+    await expect(page.locator('.pedal')).toHaveCount(0);
+
+    // Import JSON (simulate user file input)
+    const importInput = await page.$('#import-json-input');
+    await importInput.setInputFiles(path);
+    // Wait for pedal to reappear
+    await expect(page.locator('.pedal')).toHaveCount(1);
+    // Verify the pedal is the same model as before
+    const pedalText = await page.locator('.pedal').first().getAttribute('id');
+    expect(pedalText).toContain('boss_ds1');
+  });
 });

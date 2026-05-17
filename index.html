@@ -7,63 +7,67 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div id="sidebar">
-        <h1>Pedal Planner</h1>
-        
-        <div class="control-group">
-            <label for="board-search">1. Choose a Board</label>
-            <input type="text" id="board-search" placeholder="Search boards...">
-            <div id="board-list" class="custom-list"></div>
-            
-            <div class="custom-board-inputs">
-                <input type="number" id="custom-w" placeholder="W(cm)" min="10" max="200">
-                <input type="number" id="custom-h" placeholder="H(cm)" min="10" max="200">
-                <button id="custom-board-btn">Create</button>
+<div id="sidebar">
+    <h1>Pedal Planner</h1>
+
+    <div class="control-group">
+        <label for="board-search">1. Choose a Board</label>
+        <input type="text" id="board-search" placeholder="Search boards...">
+        <div id="board-list" class="custom-list"></div>
+
+        <div class="custom-board-inputs">
+            <input type="number" id="custom-w" placeholder="W(cm)" min="10" max="200">
+            <input type="number" id="custom-h" placeholder="H(cm)" min="10" max="200">
+            <button id="custom-board-btn">Create</button>
+        </div>
+    </div>
+
+    <div class="control-group" style="flex-grow: 1; display:flex; flex-direction:column; overflow:hidden;">
+        <label for="pedal-search">2. Add a Pedal</label>
+        <input type="text" id="pedal-search" placeholder="Search brand or name...">
+        <div id="pedal-list" class="custom-list" style="flex-grow: 1; max-height: 40vh;"></div>
+
+        <div style="margin-top: 10px;">
+            <label><input type="checkbox" id="snap-grid" checked> Snap to 10mm grid</label>
+        </div>
+    </div>
+
+    <hr style="border: 1px solid #444; width: 100%; margin: 5px 0;">
+
+    <div class="control-group" style="flex-grow: 1; display:flex; flex-direction:column; overflow:hidden;">
+        <h3>On Board (<span id="pedal-count">0</span>)</h3>
+        <ul id="placed-pedals-list"></ul>
+    </div>
+</div>
+
+<div id="main">
+    <div id="toolbar">
+        <span style="margin-right:auto; color:#888;">Drag background to pan. Scroll to zoom. Double-click pedal to delete.</span>
+        <button id="fit-to-screen-btn">Fit to screen</button>
+        <button id="export-json-btn">Export JSON</button>
+        <input type="file" id="import-json-input" accept="application/json" style="display:none">
+        <button id="import-json-btn">Import JSON</button>
+        <button id="clear-board-btn" class="danger">Clear Board</button>
+    </div>
+
+    <div id="canvas-container">
+        <div id="board-wrapper">
+            <div id="board" class="empty-board">
+                <span class="board-placeholder">Select or create a board</span>
             </div>
         </div>
 
-        <div class="control-group" style="flex-grow: 1; display:flex; flex-direction:column; overflow:hidden;">
-            <label for="pedal-search">2. Add a Pedal</label>
-            <input type="text" id="pedal-search" placeholder="Search brand or name...">
-            <div id="pedal-list" class="custom-list" style="flex-grow: 1; max-height: 40vh;"></div>
-            
-            <div style="margin-top: 10px;">
-                <label><input type="checkbox" id="snap-grid" checked> Snap to 10mm grid</label>
-            </div>
-        </div>
-        
-        <hr style="border: 1px solid #444; width: 100%; margin: 5px 0;">
-
-        <div class="control-group" style="flex-grow: 1; display:flex; flex-direction:column; overflow:hidden;">
-            <h3>On Board (<span id="pedal-count">0</span>)</h3>
-            <ul id="placed-pedals-list"></ul>
+        <div id="preview-overlay" class="hidden">
+            <img id="preview-image" src="" alt="Preview">
+            <h2 id="preview-name"></h2>
         </div>
     </div>
-    
-    <div id="main">
-        <div id="toolbar">
-            <span style="margin-right:auto; color:#888;">Drag background to pan. Scroll to zoom. Double-click pedal to delete.</span>
-            <button id="fit-to-screen-btn">Fit to screen</button>
-            <button id="clear-board-btn" class="danger">Clear Board</button>
-        </div>
-        
-        <div id="canvas-container">
-            <div id="board-wrapper">
-                <div id="board" class="empty-board">
-                    <span class="board-placeholder">Select or create a board</span>
-                </div>
-            </div>
-            
-            <div id="preview-overlay" class="hidden">
-                <img id="preview-image" src="" alt="Preview">
-                <h2 id="preview-name"></h2>
-            </div>
-        </div>
-    </div>
-    <!-- Canvas Background Shade Selector -->
-    <div id="bg-shade-selector" style="display: flex; gap: 8px; justify-content: center; align-items: flex-end; margin-top: 18px; margin-bottom: 0;">
-        <!-- Shades will be injected by JS -->
-    </div>
-    <script src="app.js"></script>
+</div>
+<!-- Canvas Background Shade Selector -->
+<div id="bg-shade-selector"
+     style="display: flex; gap: 8px; justify-content: center; align-items: flex-end; margin-top: 18px; margin-bottom: 0;">
+    <!-- Shades will be injected by JS -->
+</div>
+<script src="app.js"></script>
 </body>
 </html>

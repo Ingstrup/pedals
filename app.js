@@ -12,14 +12,19 @@ const state = {
 // Converts the pedal JSON schema to app schema
 function normalizePedals(raw) {
     if (!Array.isArray(raw)) return [];
-    return raw.map(p => ({
-        id: ((p.Brand || 'unk') + '_' + (p.Name || 'unk')).toLowerCase().replace(/[^a-z0-9]/g, '_'),
-        name: p.Name || "Unknown",
-        brand: p.Brand || "Unknown",
-        width: Math.round((p.Width || 2) * 25.4), 
-        height: Math.round((p.Height || 4) * 25.4), 
-        image: './data/images/pedals/' + (p.Image || '')
-    }));
+    return raw.map(p => {
+        // Brand and Name, lowercased, spaces and dashes removed, joined by _
+        const brand = (p.Brand || 'unk').toLowerCase().replace(/[^a-z0-9]/g, '');
+        const name = (p.Name || 'unk').toLowerCase().replace(/[^a-z0-9]/g, '');
+        return {
+            id: brand + '_' + name,
+            name: p.Name || "Unknown",
+            brand: p.Brand || "Unknown",
+            width: Math.round((p.Width || 2) * 25.4),
+            height: Math.round((p.Height || 4) * 25.4),
+            image: './data/images/pedals/' + (p.Image || '')
+        };
+    });
 }
 
 // Converts the board JSON schema to app schema
@@ -408,6 +413,132 @@ function setupEventListeners() {
         saveToLocalStorage(); 
     }, {passive: false});
     document.getElementById('fit-to-screen-btn').addEventListener('click', fitToScreen);
+
+    document.getElementById('export-json-btn').addEventListener('click', () => {
+        console.log('Export clicked');
+        // Export: nest pedals under board, include positions
+        const exportData = {
+            board: state.selectedBoard ? {
+                id: state.selectedBoard.id,
+                name: state.selectedBoard.name,
+                width: state.selectedBoard.width,
+                height: state.selectedBoard.height,
+                image: state.selectedBoard.image ? state.selectedBoard.image.split('/').pop() : null,
+                pedals: state.placedPedals.map(p => {
+                    const pedalData = state.pedals.find(pd => pd.id === p.pedalId);
+                    return {
+                        instanceId: p.instanceId,
+                        pedalId: p.pedalId,
+                        image: pedalData && pedalData.image ? pedalData.image.split('/').pop() : null,
+                        x: p.x,
+                        y: p.y
+                    };
+                })
+            } : null,
+            zoom: state.zoom,
+            panX: state.panX,
+            panY: state.panY
+        };
+        const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'pedalboard-export.json';
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => {
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }, 100);
+    });
+
+    // Import JSON logic
+    document.getElementById('import-json-btn').addEventListener('click', () => {
+        document.getElementById('import-json-input').click();
+    });
+    document.getElementById('import-json-input').addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        try {
+            const text = await file.text();
+            const data = JSON.parse(text);
+            // Restore board by image filename if present
+            let board = null;
+            if (data.board && data.board.image) {
+                const imageFilename = data.board.image;
+                board = state.boards.find(b => b.image && b.image.endsWith(imageFilename));
+                if (!board) {
+                    // Try to find in boards.json raw data (if not normalized)
+                    // Fallback: add as custom board
+                    board = {
+                        id: data.board.id || ('custom_' + Date.now()),
+                        name: data.board.name || 'Imported Board',
+                        width: data.board.width,
+                        height: data.board.height,
+                        image: data.board.image ? './data/images/boards/' + data.board.image : undefined
+                    };
+                    state.boards.push(board);
+                    if (boardListManager) boardListManager.addNode(board);
+                }
+                setBoard(board);
+                document.getElementById('board-search').value = board.name;
+            }
+
+            // Restore zoom/pan if present (after board is set)
+            if (typeof data.zoom === 'number') state.zoom = data.zoom;
+            if (typeof data.panX === 'number') state.panX = data.panX;
+            if (typeof data.panY === 'number') state.panY = data.panY;
+            updateTransform();
+
+            // Restore pedals from new nested structure
+            if (data.board && Array.isArray(data.board.pedals)) {
+                state.placedPedals = data.board.pedals.map(p => {
+                    let pedalId = p.pedalId;
+                    let pedal = null;
+                    if (p.image) {
+                        pedal = state.pedals.find(pd => pd.image && pd.image.endsWith(p.image));
+                        if (pedal) pedalId = pedal.id;
+                    } else {
+                        pedal = state.pedals.find(pd => pd.id === pedalId);
+                    }
+                    // Use the original instanceId if present, else generate a new one
+                    const instanceId = p.instanceId || `pedal_${Date.now()}_${Math.floor(Math.random()*1000)}`;
+                    return {
+                        instanceId,
+                        pedalId,
+                        x: p.x,
+                        y: p.y
+                    };
+                });
+            } else if (Array.isArray(data.placedPedals)) {
+                // Fallback for old format
+                state.placedPedals = data.placedPedals.map(p => {
+                    let pedalId = p.pedalId;
+                    let pedal = null;
+                    if (p.image) {
+                        pedal = state.pedals.find(pd => pd.image && pd.image.endsWith(p.image));
+                        if (pedal) pedalId = pedal.id;
+                    } else {
+                        pedal = state.pedals.find(pd => pd.id === pedalId);
+                    }
+                    const instanceId = p.instanceId || `pedal_${Date.now()}_${Math.floor(Math.random()*1000)}`;
+                    return {
+                        instanceId,
+                        pedalId,
+                        x: p.x,
+                        y: p.y
+                    };
+                });
+            } else {
+                state.placedPedals = [];
+            }
+            renderPlacedPedals();
+            saveToLocalStorage();
+        } catch (err) {
+            alert('Failed to import JSON: ' + err);
+        }
+        e.target.value = '';
+    });
 }
 
 // --- BOARD LOGIC ---
@@ -511,22 +642,20 @@ function addPedalToBoard(pedalData, savedX = null, savedY = null, instanceId = n
     updateSidebarList();
 }
 
-function renderPedalDOM(pedalData, x, y, id) {
+function renderPedalDOM(pedalData, x, y, instanceId) {
+    const domId = `${pedalData.id}_${instanceId}`;
     const el = document.createElement('div');
     el.className = 'pedal';
-    el.id = id;
+    el.id = domId;
     el.style.width = pedalData.width + 'px';
     el.style.height = pedalData.height + 'px';
     el.style.left = x + 'px';
     el.style.top = y + 'px';
     el.style.zIndex = ++highestZ;
-    
     const shortName = pedalData.name ? pedalData.name.split(' ')[0] : 'Pedal';
     el.innerHTML = `<img src="${pedalData.image}" draggable="false" onerror="this.src='https://placehold.co/${pedalData.width}x${pedalData.height}/444/fff?text=${shortName}'">`;
-    
-    el.addEventListener('dblclick', () => removePedal(id));
+    el.addEventListener('dblclick', () => removePedal(instanceId));
     el.addEventListener('mousedown', () => el.style.zIndex = ++highestZ);
-
     document.getElementById('board').appendChild(el);
 }
 
@@ -548,24 +677,27 @@ document.addEventListener('mousedown', (e) => {
 
 document.addEventListener('mousemove', (e) => {
     if (!draggingEl) return; 
-    
     let dx = (e.clientX - startMouseX) / state.zoom;
     let dy = (e.clientY - startMouseY) / state.zoom;
     let newLeft = startElLeft + dx;
     let newTop = startElTop + dy;
-
     if (document.getElementById('snap-grid').checked) {
         newLeft = Math.round(newLeft / 10) * 10;
         newTop = Math.round(newTop / 10) * 10;
+        // Ensure remainder is always <= 5
+        if (newLeft % 10 > 5) newLeft = Math.round(newLeft / 10) * 10;
+        if (newTop % 10 > 5) newTop = Math.round(newTop / 10) * 10;
     }
-
     draggingEl.style.left = newLeft + 'px';
     draggingEl.style.top = newTop + 'px';
 });
 
 document.addEventListener('mouseup', () => {
     if (draggingEl) { 
-        const pState = state.placedPedals.find(p => p.instanceId === draggingEl.id);
+        // Find instanceId from DOM id
+        const domId = draggingEl.id;
+        const instanceId = domId.split('_').slice(-2).join('_'); // works for ids like boss_ds1_pedal_1234_567
+        const pState = state.placedPedals.find(p => `${p.pedalId}_${p.instanceId}` === domId);
         if(pState) {
             pState.x = parseFloat(draggingEl.style.left);
             pState.y = parseFloat(draggingEl.style.top);
@@ -575,15 +707,30 @@ document.addEventListener('mouseup', () => {
     }
 });
 
-// --- UTILITIES ---
 function removePedal(instanceId) {
     state.placedPedals = state.placedPedals.filter(p => p.instanceId !== instanceId);
-    const el = document.getElementById(instanceId);
-    if(el) el.remove();
+    // Remove DOM element by id
+    const pedal = state.pedals.find(pd => {
+        // Find the pedal model for this instanceId
+        return state.placedPedals.find(p => p.instanceId === instanceId && p.pedalId === pd.id);
+    });
+    let domId = null;
+    if (pedal) {
+        domId = `${pedal.id}_${instanceId}`;
+    } else {
+        // Fallback: try to find any element ending with _instanceId
+        const el = document.querySelector(`.pedal[id$='_${instanceId}']`);
+        if (el) domId = el.id;
+    }
+    if(domId) {
+        const el = document.getElementById(domId);
+        if(el) el.remove();
+    }
     updateSidebarList(); 
     saveToLocalStorage();
 }
 
+// --- UTILITIES ---
 function clearPedals() {
     state.placedPedals = []; 
     Array.from(document.getElementById('board').querySelectorAll('.pedal')).forEach(el => el.remove());
