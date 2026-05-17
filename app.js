@@ -1,6 +1,6 @@
 import { state } from './state.js';
 import { loadData } from './data.js';
-import { loadFromLocalStorage, saveToLocalStorage } from './storage.js';
+import { loadFromLocalStorage, saveToLocalStorage, undo, redo } from './storage.js';
 import { setupCustomLists, setupBgShadeSelector, boardListManager } from './sidebar.js';
 import { setupBoardPanning, fitToScreen, renderBoards, addBoardToCanvas, updateTransform, removeBoardFromCanvas, removePedal } from './canvas.js';
 import { setupDragAndDrop } from './dragDrop.js';
@@ -112,5 +112,18 @@ function setupEventListeners() {
         e.target.value = '';
     });
 }
+
+window.addEventListener('keydown', (e) => {
+    if (e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
+    const mod = e.ctrlKey || e.metaKey;
+    if (!mod) return;
+    if (e.key === 'z' || e.key === 'Z') {
+        e.preventDefault();
+        if (e.shiftKey) redo(); else undo();
+    } else if (e.key === 'y' || e.key === 'Y') {
+        e.preventDefault();
+        redo();
+    }
+});
 
 window.addEventListener('DOMContentLoaded', init);
