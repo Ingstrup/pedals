@@ -1,3 +1,4 @@
 .ignore/
 data/
 test-results/
+node_modules/
