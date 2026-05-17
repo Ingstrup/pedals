@@ -2,6 +2,7 @@ import { state } from './state.js';
 import { addBoardToCanvas, addPedalToBoard, removeBoardFromCanvas, removePedal, renderBoards } from './canvas.js';
 
 export let boardListManager = null;
+export let pedalListManager = null;
 
 export function setupCustomLists() {
     const previewOverlay = document.getElementById('preview-overlay');
@@ -161,9 +162,9 @@ export function setupCustomLists() {
         }
     );
 
-    let previewTimeout; 
-    createListManager(
-        'pedal-search', 'pedal-list', state.pedals, 
+    let previewTimeout;
+    pedalListManager = createListManager(
+        'pedal-search', 'pedal-list', state.pedals,
         p => `${p.brand} - ${p.name}`, 
         ['brand', 'name'], 
         p => { addPedalToBoard(p); },

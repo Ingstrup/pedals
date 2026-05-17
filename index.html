@@ -32,7 +32,10 @@
     </div>
 
     <div class="control-group" style="flex-grow: 1; display:flex; flex-direction:column; overflow:hidden; margin-top: 10px;">
-        <label for="pedal-search">2. Add a Pedal</label>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <label for="pedal-search">2. Add a Pedal</label>
+            <button id="open-custom-pedal-btn" type="button" style="padding: 4px 8px; font-size: 0.75rem; font-weight: 500;">+ Custom...</button>
+        </div>
         <input type="text" id="pedal-search" placeholder="Search brand or name...">
         <div id="pedal-list" class="custom-list" style="flex-grow: 1; max-height: 40vh;"></div>
 
@@ -74,6 +77,24 @@
     </div>
 </div>
 <div id="bg-shade-selector" style="display: flex; gap: 8px; justify-content: center; align-items: flex-end; margin-top: 18px; margin-bottom: 0;"></div>
+
+<div id="custom-pedal-modal" class="modal hidden">
+    <div class="modal-panel">
+        <h3 style="margin-top: 0;">Add Custom Pedal</h3>
+        <label>Brand <input type="text" id="cp-brand" placeholder="e.g. Custom"></label>
+        <label>Name <input type="text" id="cp-name" placeholder="e.g. My Boost"></label>
+        <div style="display: flex; gap: 10px;">
+            <label style="flex: 1;">Width (cm) <input type="number" id="cp-width" min="1" max="40" step="0.1"></label>
+            <label style="flex: 1;">Height (cm) <input type="number" id="cp-height" min="1" max="40" step="0.1"></label>
+        </div>
+        <label>Image <input type="file" id="cp-image" accept="image/*"></label>
+        <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 12px;">
+            <button id="cp-cancel" type="button" class="danger">Cancel</button>
+            <button id="cp-save" type="button">Add pedal</button>
+        </div>
+    </div>
+</div>
+
 <script type="module" src="app.js"></script>
 </body>
 </html>
