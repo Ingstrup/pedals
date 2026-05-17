@@ -174,7 +174,7 @@ export function renderBoards() {
 
         board.pedals.forEach(p => {
             const pedalData = state.pedals.find(pd => pd.id === p.pedalId);
-            if (pedalData) renderPedalDOM(pedalData, p.x, p.y, p.instanceId, boardDiv, board.id);
+            if (pedalData) renderPedalDOM(pedalData, p.x, p.y, p.instanceId, boardDiv, board.id, p.rotation || 0);
         });
 
         if (state.selectedBoardId === board.id) { 
@@ -188,7 +188,7 @@ export function renderBoards() {
 
     state.canvasPedals.forEach(p => {
         const pedalData = state.pedals.find(pd => pd.id === p.pedalId);
-        if (pedalData) renderPedalDOM(pedalData, p.x, p.y, p.instanceId, wrapper, null);
+        if (pedalData) renderPedalDOM(pedalData, p.x, p.y, p.instanceId, wrapper, null, p.rotation || 0);
     });
 
     updateBoardInfoPanel();
@@ -213,24 +213,44 @@ export function addPedalToBoard(pedalData, savedX = null, savedY = null, instanc
     renderBoards();
 }
 
-export function renderPedalDOM(pedalData, x, y, instanceId, parentEl, boardId) {
+export function renderPedalDOM(pedalData, x, y, instanceId, parentEl, boardId, rotation = 0) {
     const el = document.createElement('div');
     el.className = 'pedal';
     el.dataset.instanceId = instanceId;
-    if (boardId) el.dataset.boardId = boardId; 
-    
+    if (boardId) el.dataset.boardId = boardId;
+
     el.style.width = pedalData.width + 'px';
     el.style.height = pedalData.height + 'px';
     el.style.left = x + 'px';
     el.style.top = y + 'px';
     el.style.zIndex = ++highestZ;
-    
+    if (rotation) el.style.transform = `rotate(${rotation}deg)`;
+
     const shortName = pedalData.name ? pedalData.name.split(' ')[0] : 'Pedal';
     el.innerHTML = `<img src="${pedalData.image}" draggable="false" onerror="this.src='https://placehold.co/${pedalData.width}x${pedalData.height}/444/fff?text=${shortName}'">`;
-    
+
+    const rotateBtn = document.createElement('button');
+    rotateBtn.className = 'pedal-rotate-btn';
+    rotateBtn.type = 'button';
+    rotateBtn.title = 'Rotate 90°';
+    rotateBtn.textContent = '⟳';
+    rotateBtn.addEventListener('mousedown', (e) => { e.stopPropagation(); });
+    rotateBtn.addEventListener('click', (e) => { e.stopPropagation(); rotatePedal(instanceId); });
+    el.appendChild(rotateBtn);
+
     el.addEventListener('dblclick', () => removePedal(instanceId));
     el.addEventListener('mousedown', () => el.style.zIndex = ++highestZ);
     parentEl.appendChild(el);
+}
+
+export function rotatePedal(instanceId) {
+    const tick = (p) => { p.rotation = ((p.rotation || 0) + 90) % 360; };
+    for (const board of state.placedBoards) {
+        const p = board.pedals.find(pp => pp.instanceId === instanceId);
+        if (p) { tick(p); renderBoards(); saveToLocalStorage(); return; }
+    }
+    const p = state.canvasPedals.find(pp => pp.instanceId === instanceId);
+    if (p) { tick(p); renderBoards(); saveToLocalStorage(); }
 }
 
 export function removePedal(instanceId) {
