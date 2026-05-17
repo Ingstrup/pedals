@@ -55,7 +55,7 @@
 
 <div id="main">
     <div id="toolbar">
-        <span style="margin-right:auto; color:#888;">Double-click pedal to delete. Scroll to zoom.</span>
+        <span style="margin-right:auto; color:#888; font-weight: bold;">Workspace</span>
         <button id="fit-to-screen-btn">Fit to screen</button>
         <button id="export-json-btn">Export JSON</button>
         <input type="file" id="import-json-input" accept="application/json" style="display:none">
@@ -72,8 +72,13 @@
             <h2 id="preview-name"></h2>
         </div>
     </div>
+
+    <div id="footer-status-bar">
+        <span id="help-status-bar">Scroll to zoom workspace. Click objects to select.</span>
+        <div id="bg-shade-selector" style="display: flex; gap: 8px; align-items: center;"></div>
+    </div>
 </div>
-<div id="bg-shade-selector" style="display: flex; gap: 8px; justify-content: center; align-items: flex-end; margin-top: 18px; margin-bottom: 0;"></div>
+
 <script type="module" src="app.js"></script>
 </body>
 </html>

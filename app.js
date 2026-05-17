@@ -21,6 +21,33 @@ async function init() {
 }
 
 function setupEventListeners() {
+    // Global hotkey listener for rotating pedals
+    window.addEventListener('keydown', (e) => {
+        // If user is typing inside an input field, don't execute hotkey
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+        if (e.key.toLowerCase() === 'r') {
+            const focusedEl = document.querySelector('.pedal.focused');
+            if (!focusedEl || !window.activeFocusedPedal) return;
+
+            const { instanceId, boardId, element } = window.activeFocusedPedal;
+            let targetPedal;
+
+            if (boardId) {
+                const b = state.placedBoards.find(board => board.id === boardId);
+                targetPedal = b ? b.pedals.find(ped => ped.instanceId === instanceId) : null;
+            } else {
+                targetPedal = state.canvasPedals.find(ped => ped.instanceId === instanceId);
+            }
+
+            if (targetPedal) {
+                // Cycle rotation value by 90 degrees
+                targetPedal.rotation = ((targetPedal.rotation || 0) + 90) % 360;
+                element.style.transform = `rotate(${targetPedal.rotation}deg)`;
+                saveToLocalStorage();
+            }
+        }
+    });
     document.getElementById('custom-board-btn').addEventListener('click', () => {
         const w = Number.parseFloat(document.getElementById('custom-w').value);
         const h = Number.parseFloat(document.getElementById('custom-h').value);

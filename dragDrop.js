@@ -46,14 +46,14 @@ export function setupDragAndDrop() {
 
             const rect = draggingEl.getBoundingClientRect();
             const containerRect = document.getElementById('canvas-container').getBoundingClientRect();
-            
+
             const absoluteCanvasX = ((rect.left + rect.width/2 - containerRect.left) - state.panX) / state.zoom;
             const absoluteCanvasY = ((rect.top + rect.height/2 - containerRect.top) - state.panY) / state.zoom;
 
             let targetBoard = null;
             for (let i = state.placedBoards.length - 1; i >= 0; i--) {
                 const b = state.placedBoards[i];
-                if (absoluteCanvasX >= b.x && absoluteCanvasX <= b.x + b.width && 
+                if (absoluteCanvasX >= b.x && absoluteCanvasX <= b.x + b.width &&
                     absoluteCanvasY >= b.y && absoluteCanvasY <= b.y + b.height) {
                     targetBoard = b;
                     break;
@@ -70,13 +70,22 @@ export function setupDragAndDrop() {
                 pedalDataState = state.canvasPedals.splice(idx, 1)[0];
             }
 
-            const pedalWidth = parseFloat(draggingEl.style.width);
-            const pedalHeight = parseFloat(draggingEl.style.height);
+            // --- ORIENTATION MATH FIX ---
+            const pedalWidthRaw = parseFloat(draggingEl.style.width);
+            const pedalHeightRaw = parseFloat(draggingEl.style.height);
+
+            // Check if pedal is rotated vertically (90 or 270 degrees)
+            const rotationAngle = pedalDataState.rotation || 0;
+            const isOrientedVertically = (rotationAngle === 90 || rotationAngle === 270);
+
+            // Swap width and height for boundary checks if oriented vertically
+            const pedalWidth = isOrientedVertically ? pedalHeightRaw : pedalWidthRaw;
+            const pedalHeight = isOrientedVertically ? pedalWidthRaw : pedalHeightRaw;
 
             if (targetBoard) {
                 pedalDataState.x = (absoluteCanvasX - targetBoard.x) - pedalWidth/2;
                 pedalDataState.y = (absoluteCanvasY - targetBoard.y) - pedalHeight/2;
-                
+
                 if (document.getElementById('snap-grid').checked) {
                     pedalDataState.x = Math.round(pedalDataState.x / 10) * 10;
                     pedalDataState.y = Math.round(pedalDataState.y / 10) * 10;
@@ -85,7 +94,7 @@ export function setupDragAndDrop() {
             } else {
                 pedalDataState.x = absoluteCanvasX - pedalWidth/2;
                 pedalDataState.y = absoluteCanvasY - pedalHeight/2;
-                
+
                 if (document.getElementById('snap-grid').checked) {
                     pedalDataState.x = Math.round(pedalDataState.x / 10) * 10;
                     pedalDataState.y = Math.round(pedalDataState.y / 10) * 10;
@@ -93,9 +102,9 @@ export function setupDragAndDrop() {
                 state.canvasPedals.push(pedalDataState);
             }
 
-            saveToLocalStorage(); 
-            renderBoards(); 
-            draggingEl = null; 
+            saveToLocalStorage();
+            renderBoards();
+            draggingEl = null;
             dragSource = null;
         }
     });

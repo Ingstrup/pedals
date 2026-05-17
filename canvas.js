@@ -31,11 +31,11 @@ export function fitToScreen() {
         contentHeight = maxY - minY;
     }
 
-    const margin = 60; 
+    const margin = 60;
     const scaleX = (container.clientWidth - margin * 2) / (contentWidth || 1);
     const scaleY = (container.clientHeight - margin * 2) / (contentHeight || 1);
-    
-    state.zoom = Math.max(0.4, Math.min(scaleX, scaleY, 2));
+
+    state.zoom = Math.max(0.2, Math.min(scaleX, scaleY, 4));
     state.panX = (container.clientWidth - contentWidth * state.zoom) / 2 - (minX * state.zoom);
     state.panY = (container.clientHeight - contentHeight * state.zoom) / 2 - (minY * state.zoom);
 
@@ -53,10 +53,18 @@ export function addBoardToCanvas(board) {
     const isFirstItem = state.placedBoards.length === 0 && state.canvasPedals.length === 0;
 
     if (!state.placedBoards.find(b => b.id === board.id)) {
+        let initialX = 100 + state.placedBoards.length * 40;
+        let initialY = 100 + state.placedBoards.length * 40;
+
+        if (document.getElementById('snap-grid').checked) {
+            initialX = Math.round(initialX / 10) * 10;
+            initialY = Math.round(initialY / 10) * 10;
+        }
+
         state.placedBoards.push({
             ...board,
-            x: 100 + state.placedBoards.length * 40,
-            y: 100 + state.placedBoards.length * 40,
+            x: initialX,
+            y: initialY,
             pedals: []
         });
     }
@@ -79,9 +87,21 @@ export function removeBoardFromCanvas(boardId) {
 export function setupBoardPanning() {
     const container = document.getElementById('canvas-container');
     container.addEventListener('mousedown', (e) => {
-        if (e.target === container || e.target.classList.contains('empty-board') || (e.target.closest('#board-wrapper') && !e.target.closest('.pedal') && !e.target.closest('.placed-board'))) {
+        if (e.target === container || (e.target.closest('#board-wrapper') && !e.target.closest('.pedal') && !e.target.closest('.placed-board'))) {
+            
+            // Update help bar first to prevent canvas lifecycle cutoff errors
+            const helpBar = document.getElementById('help-status-bar');
+            if (helpBar) {
+                helpBar.textContent = "Scroll to zoom workspace. Click objects to select.";
+            }
+
             state.selectedBoardId = null;
             updateBoardInfoPanel();
+
+            // Clear active node selections completely
+            Array.from(document.querySelectorAll('.pedal')).forEach(p => p.classList.remove('focused'));
+            window.activeFocusedPedal = null;
+
             renderBoards();
         }
     });
@@ -90,17 +110,20 @@ export function setupBoardPanning() {
 export function renderBoards() {
     const wrapper = document.getElementById('board-wrapper');
     wrapper.innerHTML = '';
-    
-    if (state.placedBoards.length === 0 && state.canvasPedals.length === 0) {
-        const placeholder = document.createElement('div');
-        placeholder.className = 'empty-board';
-        placeholder.innerHTML = '<span class="board-placeholder">Select or create a board</span>';
-        wrapper.appendChild(placeholder);
-    }
-    
+
     state.placedBoards.forEach(board => {
         const boardDiv = document.createElement('div');
         boardDiv.className = 'placed-board';
+        
+        if (state.selectedBoardId === board.id) {
+            boardDiv.classList.add('focused');
+        }
+
+        // Give a specific class if it's a custom layout with no background asset image
+        if (!board.image) {
+            boardDiv.classList.add('custom-frame');
+        }
+
         boardDiv.style.position = 'absolute';
         boardDiv.style.left = board.x + 'px';
         boardDiv.style.top = board.y + 'px';
@@ -110,7 +133,7 @@ export function renderBoards() {
         boardDiv.style.backgroundSize = 'contain';
         boardDiv.style.backgroundRepeat = 'no-repeat';
         boardDiv.style.backgroundPosition = 'center';
-        boardDiv.style.backgroundColor = 'transparent';
+        boardDiv.style.backgroundColor = board.image ? 'transparent' : ''; 
         boardDiv.style.zIndex = 1;
         boardDiv.dataset.boardId = board.id;
 
@@ -133,20 +156,35 @@ export function renderBoards() {
             state.selectedBoardId = board.id;
             updateBoardInfoPanel();
             updateOnCanvasSidebar();
-            Array.from(document.querySelectorAll('.placed-board')).forEach(el => el.style.boxShadow = 'none');
-            boardDiv.style.boxShadow = '0 0 0 4px #2a9fd6';
+            Array.from(document.querySelectorAll('.placed-board')).forEach(el => el.classList.remove('focused'));
+            boardDiv.classList.add('focused');
+
+            // Set dynamic board selection feedback text
+            const helpBar = document.getElementById('help-status-bar');
+            if (helpBar) {
+                helpBar.textContent = "Selected Board. Drag to position. Use sidebar items to manage.";
+            }
         };
 
         let isDragging = false;
         let dragStartMouseX = 0, dragStartMouseY = 0;
         let dragStartBoardX = 0, dragStartBoardY = 0;
-        
+
         const onMouseMove = (e) => {
             if (!isDragging) return;
-            const dx = (e.clientX - dragStartMouseX) / state.zoom;
-            const dy = (e.clientY - dragStartMouseY) / state.zoom;
-            board.x = dragStartBoardX + dx;
-            board.y = dragStartBoardY + dy;
+            let dx = (e.clientX - dragStartMouseX) / state.zoom;
+            let dy = (e.clientY - dragStartMouseY) / state.zoom;
+
+            let targetX = dragStartBoardX + dx;
+            let targetY = dragStartBoardY + dy;
+
+            if (document.getElementById('snap-grid').checked) {
+                targetX = Math.round(targetX / 10) * 10;
+                targetY = Math.round(targetY / 10) * 10;
+            }
+
+            board.x = targetX;
+            board.y = targetY;
             boardDiv.style.left = board.x + 'px';
             boardDiv.style.top = board.y + 'px';
         };
@@ -177,12 +215,6 @@ export function renderBoards() {
             if (pedalData) renderPedalDOM(pedalData, p.x, p.y, p.instanceId, boardDiv, board.id);
         });
 
-        if (state.selectedBoardId === board.id) { 
-            boardDiv.style.boxShadow = '0 0 0 4px #2a9fd6'; 
-        } else { 
-            boardDiv.style.boxShadow = 'none'; 
-        }
-        
         wrapper.appendChild(boardDiv);
     });
 
@@ -198,16 +230,27 @@ export function renderBoards() {
 export function addPedalToBoard(pedalData, savedX = null, savedY = null, instanceId = null) {
     const id = instanceId || `pedal_${Date.now()}_${Math.floor(Math.random()*1000)}`;
     const board = state.placedBoards.find(b => b.id === state.selectedBoardId);
-    
+    const snapEnabled = document.getElementById('snap-grid').checked;
+
     if (board) {
-        const x = savedX !== null ? savedX : (board.width / 2) - (pedalData.width / 2);
-        const y = savedY !== null ? savedY : (board.height / 2) - (pedalData.height / 2);
-        board.pedals.push({ instanceId: id, pedalId: pedalData.id, x, y });
+        let x = savedX !== null ? savedX : (board.width / 2) - (pedalData.width / 2);
+        let y = savedY !== null ? savedY : (board.height / 2) - (pedalData.height / 2);
+
+        if (snapEnabled) {
+            x = Math.round(x / 10) * 10;
+            y = Math.round(y / 10) * 10;
+        }
+        board.pedals.push({ instanceId: id, pedalId: pedalData.id, x, y, rotation: 0 });
     } else {
         const container = document.getElementById('canvas-container');
-        const x = savedX !== null ? savedX : (container.clientWidth / 2 - state.panX) / state.zoom - (pedalData.width / 2);
-        const y = savedY !== null ? savedY : (container.clientHeight / 2 - state.panY) / state.zoom - (pedalData.height / 2);
-        state.canvasPedals.push({ instanceId: id, pedalId: pedalData.id, x, y });
+        let x = savedX !== null ? savedX : (container.clientWidth / 2 - state.panX) / state.zoom - (pedalData.width / 2);
+        let y = savedY !== null ? savedY : (container.clientHeight / 2 - state.panY) / state.zoom - (pedalData.height / 2);
+
+        if (snapEnabled) {
+            x = Math.round(x / 10) * 10;
+            y = Math.round(y / 10) * 10;
+        }
+        state.canvasPedals.push({ instanceId: id, pedalId: pedalData.id, x, y, rotation: 0 });
     }
     saveToLocalStorage();
     renderBoards();
@@ -217,19 +260,45 @@ export function renderPedalDOM(pedalData, x, y, instanceId, parentEl, boardId) {
     const el = document.createElement('div');
     el.className = 'pedal';
     el.dataset.instanceId = instanceId;
-    if (boardId) el.dataset.boardId = boardId; 
-    
+    if (boardId) el.dataset.boardId = boardId;
+
+    let currentRotation = 0;
+    if (boardId) {
+        const b = state.placedBoards.find(board => board.id === boardId);
+        const p = b ? b.pedals.find(ped => ped.instanceId === instanceId) : null;
+        if (p && p.rotation) currentRotation = p.rotation;
+    } else {
+        const p = state.canvasPedals.find(ped => ped.instanceId === instanceId);
+        if (p && p.rotation) currentRotation = p.rotation;
+    }
+
     el.style.width = pedalData.width + 'px';
     el.style.height = pedalData.height + 'px';
     el.style.left = x + 'px';
     el.style.top = y + 'px';
     el.style.zIndex = ++highestZ;
-    
+    el.style.transform = `rotate(${currentRotation}deg)`;
+
     const shortName = pedalData.name ? pedalData.name.split(' ')[0] : 'Pedal';
     el.innerHTML = `<img src="${pedalData.image}" draggable="false" onerror="this.src='https://placehold.co/${pedalData.width}x${pedalData.height}/444/fff?text=${shortName}'">`;
-    
+
+    el.addEventListener('mousedown', (e) => {
+        el.style.zIndex = ++highestZ;
+        
+        Array.from(document.querySelectorAll('.pedal')).forEach(p => p.classList.remove('focused'));
+        el.classList.add('focused');
+        
+        // Expose data pointers globally so app.js can catch 'R' keys safely
+        window.activeFocusedPedal = { instanceId, boardId, element: el };
+
+        // Set pedal active context prompt message
+        const helpBar = document.getElementById('help-status-bar');
+        if (helpBar) {
+            helpBar.textContent = "Selected Pedal. Drag to reposition. Press R to rotate. Double-click to delete.";
+        }
+    });
+
     el.addEventListener('dblclick', () => removePedal(instanceId));
-    el.addEventListener('mousedown', () => el.style.zIndex = ++highestZ);
     parentEl.appendChild(el);
 }
 
