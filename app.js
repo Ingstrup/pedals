@@ -1,6 +1,6 @@
 import { state } from './state.js';
 import { loadData } from './data.js';
-import { loadFromLocalStorage, saveToLocalStorage } from './storage.js';
+import { loadFromLocalStorage, saveToLocalStorage, listSceneNames, getCurrentSceneName, switchToScene, createScene } from './storage.js';
 import { setupCustomLists, setupBgShadeSelector, boardListManager } from './sidebar.js';
 import { setupBoardPanning, fitToScreen, renderBoards, addBoardToCanvas, updateTransform, removeBoardFromCanvas, removePedal } from './canvas.js';
 import { setupDragAndDrop } from './dragDrop.js';
@@ -11,13 +11,45 @@ window.removePedalGlobal = removePedal;
 
 async function init() {
     await loadData();
-    setupCustomLists(); 
+    setupCustomLists();
     setupEventListeners();
     setupBoardPanning();
     setupDragAndDrop();
-    fitToScreen(); 
+    fitToScreen();
     loadFromLocalStorage();
+    setupSceneControls();
     setupBgShadeSelector();
+}
+
+function refreshSceneSelect() {
+    const select = document.getElementById('scene-select');
+    if (!select) return;
+    const names = listSceneNames();
+    const current = getCurrentSceneName();
+    select.innerHTML = '';
+    names.forEach(n => {
+        const opt = document.createElement('option');
+        opt.value = n;
+        opt.textContent = n;
+        if (n === current) opt.selected = true;
+        select.appendChild(opt);
+    });
+}
+
+function setupSceneControls() {
+    refreshSceneSelect();
+    document.getElementById('scene-select').addEventListener('change', (e) => {
+        switchToScene(e.target.value);
+    });
+    document.getElementById('scene-new-btn').addEventListener('click', () => {
+        const name = (window.prompt('Name for the new scene:') || '').trim();
+        if (!name) return;
+        if (!createScene(name)) {
+            alert(`A scene named "${name}" already exists.`);
+            return;
+        }
+        refreshSceneSelect();
+    });
 }
 
 function setupEventListeners() {
