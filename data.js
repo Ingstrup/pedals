@@ -5,12 +5,16 @@ function normalizePedals(raw) {
     return raw.map(p => {
         const brand = (p.Brand || 'unk').toLowerCase().replace(/[^a-z0-9]/g, '');
         const name = (p.Name || 'unk').toLowerCase().replace(/[^a-z0-9]/g, '');
+        const draw = Number(p.CurrentDraw);
+        const voltage = Number(p.Voltage);
         return {
             id: brand + '_' + name,
             name: p.Name || "Unknown",
             brand: p.Brand || "Unknown",
             width: Math.round((p.Width || 2) * 25.4),
             height: Math.round((p.Height || 4) * 25.4),
+            currentDraw: Number.isFinite(draw) && draw >= 0 ? draw : null,
+            voltage: Number.isFinite(voltage) && voltage > 0 ? voltage : 9,
             image: './data/images/pedals/' + (p.Image || '')
         };
     });

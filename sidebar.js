@@ -202,11 +202,53 @@ export function updateBoardInfoPanel() {
     document.getElementById('info-size').textContent = `${(b.width/10).toFixed(1)} x ${(b.height/10).toFixed(1)} cm`;
 }
 
+function updatePowerSummary(placedPedalIds) {
+    const summary = document.getElementById('power-summary');
+    if (!summary) return;
+    if (placedPedalIds.length === 0) { summary.hidden = true; return; }
+    summary.hidden = false;
+
+    let totalMA = 0;
+    let unknownCount = 0;
+    const byVoltage = new Map(); // voltage -> { count, mA }
+
+    placedPedalIds.forEach(pid => {
+        const pd = state.pedals.find(p => p.id === pid);
+        if (!pd) return;
+        if (pd.currentDraw == null) unknownCount++;
+        else totalMA += pd.currentDraw;
+        const v = pd.voltage || 9;
+        const bucket = byVoltage.get(v) || { count: 0, mA: 0 };
+        bucket.count += 1;
+        if (pd.currentDraw != null) bucket.mA += pd.currentDraw;
+        byVoltage.set(v, bucket);
+    });
+
+    document.getElementById('power-total-ma').textContent = totalMA.toLocaleString();
+    const breakdown = document.getElementById('power-voltage-breakdown');
+    breakdown.innerHTML = '';
+    [...byVoltage.entries()].sort((a, b) => a[0] - b[0]).forEach(([v, info]) => {
+        const span = document.createElement('span');
+        span.className = 'power-voltage-chip';
+        span.textContent = `${v}V × ${info.count}`;
+        breakdown.appendChild(span);
+    });
+
+    const unknownRow = document.getElementById('power-unknown-row');
+    if (unknownCount > 0) {
+        unknownRow.hidden = false;
+        document.getElementById('power-unknown-count').textContent = String(unknownCount);
+    } else {
+        unknownRow.hidden = true;
+    }
+}
+
 export function updateOnCanvasSidebar() {
   const list = document.getElementById('on-canvas-list');
   if (!list) return;
   list.innerHTML = '';
   let totalCount = 0;
+  const placedPedalIds = [];
 
   state.placedBoards.forEach(board => {
     const li = document.createElement('li');
@@ -224,6 +266,7 @@ export function updateOnCanvasSidebar() {
     ul.className = 'pedal-sub-list';
     board.pedals.forEach(p => {
         totalCount++;
+        placedPedalIds.push(p.pedalId);
         const pData = state.pedals.find(pd => pd.id === p.pedalId);
         if(pData) {
             const pli = document.createElement('li');
@@ -245,6 +288,7 @@ export function updateOnCanvasSidebar() {
       ul.className = 'pedal-sub-list';
       state.canvasPedals.forEach(p => {
         totalCount++;
+        placedPedalIds.push(p.pedalId);
         const pData = state.pedals.find(pd => pd.id === p.pedalId);
         if(pData) {
             const pli = document.createElement('li');
@@ -257,6 +301,7 @@ export function updateOnCanvasSidebar() {
       list.appendChild(li);
   }
   document.getElementById('pedal-count').innerText = totalCount;
+  updatePowerSummary(placedPedalIds);
 }
 
 const CANVAS_SHADES = [

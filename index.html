@@ -45,6 +45,11 @@
 
     <div class="control-group" style="flex-grow: 1; display:flex; flex-direction:column; overflow:hidden;">
         <h3>On Canvas (<span id="pedal-count">0</span>)</h3>
+        <div id="power-summary" class="power-summary" hidden>
+            <div class="power-summary-row"><span>Total current</span><strong><span id="power-total-ma">0</span> mA</strong></div>
+            <div class="power-summary-row" id="power-voltage-breakdown"></div>
+            <div class="power-summary-row power-summary-warning" id="power-unknown-row" hidden><span id="power-unknown-count">0</span> pedal(s) with unknown current draw</div>
+        </div>
         <ul id="on-canvas-list"></ul>
     </div>
 
