@@ -92,4 +92,35 @@ test.describe('Pedalboard Planner Core Flows', () => {
     await page.keyboard.press('Enter');
     await expect(page.locator('.pedal')).toHaveCount(1);
   });
+
+  test('Fit to screen button centers and fits board', async ({ page }) => {
+    // Create a custom board
+    await page.fill('#custom-w', '60');
+    await page.fill('#custom-h', '30');
+    await page.click('#custom-board-btn');
+    // Pan and zoom away from center
+    await page.mouse.move(600, 400);
+    await page.mouse.down();
+    await page.mouse.move(800, 600, { steps: 5 });
+    await page.mouse.up();
+    for (let i = 0; i < 20; i++) await page.locator('#canvas-container').dispatchEvent('wheel', { deltaY: -100 });
+    // Save the transform
+    const boardWrapper = page.locator('#board-wrapper');
+    const before = await boardWrapper.evaluate(el => el.style.transform);
+    // Click the Fit to screen button
+    await page.click('#fit-to-screen-btn');
+    // The transform should change to center and fit the board
+    const after = await boardWrapper.evaluate(el => el.style.transform);
+    expect(after).not.toEqual(before);
+    // The board should be visually centered (allowing for margin)
+    const container = await page.locator('#canvas-container').boundingBox();
+    const board = await page.locator('#board').boundingBox();
+    const boardCenterX = board.x + board.width / 2;
+    const boardCenterY = board.y + board.height / 2;
+    const containerCenterX = container.x + container.width / 2;
+    const containerCenterY = container.y + container.height / 2;
+    expect(Math.abs(boardCenterX - containerCenterX)).toBeLessThanOrEqual(50);
+    expect(Math.abs(boardCenterY - containerCenterY)).toBeLessThanOrEqual(50);
+  });
+
 });
