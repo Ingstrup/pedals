@@ -403,7 +403,7 @@ function setupEventListeners() {
     
     document.getElementById('canvas-container').addEventListener('wheel', (e) => {
         e.preventDefault();
-        const zoomDelta = e.deltaY > 0 ? 0.9 : 1.1;
+        const zoomDelta = e.deltaY > 0 ? 0.99 : 1.01;
         state.zoom = Math.max(0.2, Math.min(state.zoom * zoomDelta, 3));
         updateTransform();
         saveToLocalStorage(); 
