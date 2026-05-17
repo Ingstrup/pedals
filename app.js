@@ -1,6 +1,6 @@
 import { state } from './state.js';
 import { loadData } from './data.js';
-import { loadFromLocalStorage, saveToLocalStorage } from './storage.js';
+import { loadFromLocalStorage, saveToLocalStorage, getShareableUrl, loadFromShareableUrl } from './storage.js';
 import { setupCustomLists, setupBgShadeSelector, boardListManager } from './sidebar.js';
 import { setupBoardPanning, fitToScreen, renderBoards, addBoardToCanvas, updateTransform, removeBoardFromCanvas, removePedal } from './canvas.js';
 import { setupDragAndDrop } from './dragDrop.js';
@@ -11,12 +11,13 @@ window.removePedalGlobal = removePedal;
 
 async function init() {
     await loadData();
-    setupCustomLists(); 
+    setupCustomLists();
     setupEventListeners();
     setupBoardPanning();
     setupDragAndDrop();
-    fitToScreen(); 
-    loadFromLocalStorage();
+    fitToScreen();
+    // A share link in the URL takes precedence over the locally-saved state.
+    if (!loadFromShareableUrl()) loadFromLocalStorage();
     setupBgShadeSelector();
 }
 
@@ -63,6 +64,20 @@ function setupEventListeners() {
     }, {passive: false});
     
     document.getElementById('fit-to-screen-btn').addEventListener('click', fitToScreen);
+
+    document.getElementById('share-link-btn').addEventListener('click', async (e) => {
+        const url = getShareableUrl();
+        const btn = e.currentTarget;
+        const original = btn.textContent;
+        try {
+            await navigator.clipboard.writeText(url);
+            btn.textContent = 'Copied!';
+        } catch {
+            // Fallback for environments where the Clipboard API is unavailable.
+            window.prompt('Copy this share link:', url);
+        }
+        setTimeout(() => { btn.textContent = original; }, 1500);
+    });
 
     // Export JSON
     document.getElementById('export-json-btn').addEventListener('click', () => {
