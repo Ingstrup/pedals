@@ -174,7 +174,7 @@ export function renderBoards() {
 
         board.pedals.forEach(p => {
             const pedalData = state.pedals.find(pd => pd.id === p.pedalId);
-            if (pedalData) renderPedalDOM(pedalData, p.x, p.y, p.instanceId, boardDiv, board.id);
+            if (pedalData) renderPedalDOM(pedalData, p.x, p.y, p.instanceId, boardDiv, board.id, p.status);
         });
 
         if (state.selectedBoardId === board.id) { 
@@ -188,7 +188,7 @@ export function renderBoards() {
 
     state.canvasPedals.forEach(p => {
         const pedalData = state.pedals.find(pd => pd.id === p.pedalId);
-        if (pedalData) renderPedalDOM(pedalData, p.x, p.y, p.instanceId, wrapper, null);
+        if (pedalData) renderPedalDOM(pedalData, p.x, p.y, p.instanceId, wrapper, null, p.status);
     });
 
     updateBoardInfoPanel();
@@ -213,24 +213,43 @@ export function addPedalToBoard(pedalData, savedX = null, savedY = null, instanc
     renderBoards();
 }
 
-export function renderPedalDOM(pedalData, x, y, instanceId, parentEl, boardId) {
+export function renderPedalDOM(pedalData, x, y, instanceId, parentEl, boardId, status = 'owned') {
     const el = document.createElement('div');
-    el.className = 'pedal';
+    el.className = 'pedal' + (status === 'wishlist' ? ' wishlist' : '');
     el.dataset.instanceId = instanceId;
-    if (boardId) el.dataset.boardId = boardId; 
-    
+    if (boardId) el.dataset.boardId = boardId;
+
     el.style.width = pedalData.width + 'px';
     el.style.height = pedalData.height + 'px';
     el.style.left = x + 'px';
     el.style.top = y + 'px';
     el.style.zIndex = ++highestZ;
-    
+
     const shortName = pedalData.name ? pedalData.name.split(' ')[0] : 'Pedal';
     el.innerHTML = `<img src="${pedalData.image}" draggable="false" onerror="this.src='https://placehold.co/${pedalData.width}x${pedalData.height}/444/fff?text=${shortName}'">`;
-    
+
+    const statusBtn = document.createElement('button');
+    statusBtn.className = 'pedal-status-btn';
+    statusBtn.type = 'button';
+    statusBtn.title = status === 'wishlist' ? 'Mark as owned' : 'Mark as wishlist';
+    statusBtn.textContent = status === 'wishlist' ? '☆' : '✓';
+    statusBtn.addEventListener('mousedown', (e) => { e.stopPropagation(); });
+    statusBtn.addEventListener('click', (e) => { e.stopPropagation(); togglePedalStatus(instanceId); });
+    el.appendChild(statusBtn);
+
     el.addEventListener('dblclick', () => removePedal(instanceId));
     el.addEventListener('mousedown', () => el.style.zIndex = ++highestZ);
     parentEl.appendChild(el);
+}
+
+export function togglePedalStatus(instanceId) {
+    const flip = (p) => { p.status = p.status === 'wishlist' ? 'owned' : 'wishlist'; };
+    for (const board of state.placedBoards) {
+        const p = board.pedals.find(pp => pp.instanceId === instanceId);
+        if (p) { flip(p); renderBoards(); saveToLocalStorage(); return; }
+    }
+    const p = state.canvasPedals.find(pp => pp.instanceId === instanceId);
+    if (p) { flip(p); renderBoards(); saveToLocalStorage(); }
 }
 
 export function removePedal(instanceId) {

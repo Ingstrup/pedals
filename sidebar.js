@@ -207,6 +207,7 @@ export function updateOnCanvasSidebar() {
   if (!list) return;
   list.innerHTML = '';
   let totalCount = 0;
+  let wishlistCount = 0;
 
   state.placedBoards.forEach(board => {
     const li = document.createElement('li');
@@ -224,6 +225,7 @@ export function updateOnCanvasSidebar() {
     ul.className = 'pedal-sub-list';
     board.pedals.forEach(p => {
         totalCount++;
+        if (p.status === 'wishlist') wishlistCount++;
         const pData = state.pedals.find(pd => pd.id === p.pedalId);
         if(pData) {
             const pli = document.createElement('li');
@@ -245,6 +247,7 @@ export function updateOnCanvasSidebar() {
       ul.className = 'pedal-sub-list';
       state.canvasPedals.forEach(p => {
         totalCount++;
+        if (p.status === 'wishlist') wishlistCount++;
         const pData = state.pedals.find(pd => pd.id === p.pedalId);
         if(pData) {
             const pli = document.createElement('li');
@@ -257,6 +260,14 @@ export function updateOnCanvasSidebar() {
       list.appendChild(li);
   }
   document.getElementById('pedal-count').innerText = totalCount;
+  const statusEl = document.getElementById('pedal-status-counts');
+  if (statusEl) {
+      if (wishlistCount > 0) {
+          statusEl.textContent = `Owned: ${totalCount - wishlistCount} • Wishlist: ${wishlistCount}`;
+      } else {
+          statusEl.textContent = '';
+      }
+  }
 }
 
 const CANVAS_SHADES = [
