@@ -52,11 +52,24 @@ function setupEventListeners() {
 
     document.getElementById('canvas-container').addEventListener('wheel', (e) => {
         e.preventDefault();
+        const container = e.currentTarget;
+        const rect = container.getBoundingClientRect();
+        const mx = e.clientX - rect.left;
+        const my = e.clientY - rect.top;
+
         // Reduced to 2% jumps for much smoother zooming
         const zoomDelta = e.deltaY > 0 ? 0.98 : 1.02;
 
+        // World-space point under the cursor before the zoom
+        const worldX = (mx - state.panX) / state.zoom;
+        const worldY = (my - state.panY) / state.zoom;
+
         // Capped between 20% (0.2) and 400% (4)
         state.zoom = Math.max(0.2, Math.min(state.zoom * zoomDelta, 4));
+
+        // Re-anchor so the same world point stays under the cursor
+        state.panX = mx - worldX * state.zoom;
+        state.panY = my - worldY * state.zoom;
 
         updateTransform();
         saveToLocalStorage();
