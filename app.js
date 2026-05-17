@@ -2,12 +2,8 @@ import { state } from './state.js';
 import { loadData } from './data.js';
 import { loadFromLocalStorage, saveToLocalStorage } from './storage.js';
 import { setupCustomLists, setupBgShadeSelector, boardListManager } from './sidebar.js';
-import { setupBoardPanning, fitToScreen, renderBoards, addBoardToCanvas, updateTransform, removeBoardFromCanvas, removePedal } from './canvas.js';
+import { setupBoardPanning, fitToScreen, renderBoards, addBoardToCanvas, updateTransform } from './canvas.js';
 import { setupDragAndDrop } from './dragDrop.js';
-
-// Expose these two functions to the global window so the inline HTML onclicks in sidebar.js still work
-window.removeBoardFromCanvasGlobal = removeBoardFromCanvas;
-window.removePedalGlobal = removePedal;
 
 async function init() {
     await loadData();

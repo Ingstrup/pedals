@@ -202,6 +202,28 @@ export function updateBoardInfoPanel() {
     document.getElementById('info-size').textContent = `${(b.width/10).toFixed(1)} x ${(b.height/10).toFixed(1)} cm`;
 }
 
+function makeRemoveButton(onClick) {
+    const btn = document.createElement('button');
+    btn.className = 'remove-btn';
+    btn.type = 'button';
+    btn.textContent = '✕';
+    btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        onClick();
+    });
+    return btn;
+}
+
+function makePedalSubItem(pedalData, instanceId) {
+    const pli = document.createElement('li');
+    pli.className = 'pedal-sub-item';
+    const span = document.createElement('span');
+    span.textContent = `↳ ${pedalData.brand} ${pedalData.name}`;
+    pli.appendChild(span);
+    pli.appendChild(makeRemoveButton(() => removePedal(instanceId)));
+    return pli;
+}
+
 export function updateOnCanvasSidebar() {
   const list = document.getElementById('on-canvas-list');
   if (!list) return;
@@ -212,25 +234,23 @@ export function updateOnCanvasSidebar() {
     const li = document.createElement('li');
     li.className = 'board-list-item';
     if (state.selectedBoardId === board.id) { li.style.borderLeftColor = '#2a9fd6'; li.style.backgroundColor = '#444'; }
-    
-    li.innerHTML = `
-        <div class="board-list-item-header">
-            <strong>${board.name}</strong> 
-            <button class="remove-btn" onclick="event.stopPropagation(); window.removeBoardFromCanvasGlobal('${board.id}')">✕</button>
-        </div>`;
+
+    const header = document.createElement('div');
+    header.className = 'board-list-item-header';
+    const strong = document.createElement('strong');
+    strong.textContent = board.name;
+    header.appendChild(strong);
+    header.appendChild(document.createTextNode(' '));
+    header.appendChild(makeRemoveButton(() => removeBoardFromCanvas(board.id)));
+    li.appendChild(header);
     li.onclick = () => { state.selectedBoardId = board.id; renderBoards(); };
-    
+
     const ul = document.createElement('ul');
     ul.className = 'pedal-sub-list';
     board.pedals.forEach(p => {
         totalCount++;
         const pData = state.pedals.find(pd => pd.id === p.pedalId);
-        if(pData) {
-            const pli = document.createElement('li');
-            pli.className = 'pedal-sub-item';
-            pli.innerHTML = `<span>↳ ${pData.brand} ${pData.name}</span> <button class="remove-btn" onclick="event.stopPropagation(); window.removePedalGlobal('${p.instanceId}')">✕</button>`;
-            ul.appendChild(pli);
-        }
+        if (pData) ul.appendChild(makePedalSubItem(pData, p.instanceId));
     });
     li.appendChild(ul);
     list.appendChild(li);
@@ -239,19 +259,16 @@ export function updateOnCanvasSidebar() {
   if (state.canvasPedals.length > 0) {
       const li = document.createElement('li');
       li.className = 'board-list-item';
-      li.innerHTML = `<strong>Boardless Area</strong>`;
       li.style.cursor = 'default';
+      const strong = document.createElement('strong');
+      strong.textContent = 'Boardless Area';
+      li.appendChild(strong);
       const ul = document.createElement('ul');
       ul.className = 'pedal-sub-list';
       state.canvasPedals.forEach(p => {
         totalCount++;
         const pData = state.pedals.find(pd => pd.id === p.pedalId);
-        if(pData) {
-            const pli = document.createElement('li');
-            pli.className = 'pedal-sub-item';
-            pli.innerHTML = `<span>↳ ${pData.brand} ${pData.name}</span> <button class="remove-btn" onclick="event.stopPropagation(); window.removePedalGlobal('${p.instanceId}')">✕</button>`;
-            ul.appendChild(pli);
-        }
+        if (pData) ul.appendChild(makePedalSubItem(pData, p.instanceId));
       });
       li.appendChild(ul);
       list.appendChild(li);
