@@ -1,53 +1,50 @@
 // --- APP STATE ---
-const state = {
-    selectedBoard: null,
-    pedals: [],
-    boards: [],
-    placedPedals: [],
-    zoom: 1,
-    panX: 0,
-    panY: 0
+const state = { 
+    selectedBoard: null, 
+    pedals: [], 
+    boards: [], 
+    placedPedals: [], 
+    zoom: 1, 
+    panX: 0, 
+    panY: 0 
 };
 
-// Converts the JSON schema to app schema
 function normalizePedals(raw) {
     if (!Array.isArray(raw)) return [];
     return raw.map(p => ({
         id: ((p.Brand || 'unk') + '_' + (p.Name || 'unk')).toLowerCase().replace(/[^a-z0-9]/g, '_'),
         name: p.Name || "Unknown",
         brand: p.Brand || "Unknown",
-        width: Math.round((p.Width || 2) * 25.4),
-        height: Math.round((p.Height || 4) * 25.4),
-        // Updated to match your new folder structure
-        image: './data/images/pedals/' + p.Image
+        width: Math.round((p.Width || 2) * 25.4), 
+        height: Math.round((p.Height || 4) * 25.4), 
+        image: './data/images/' + p.Image
     }));
 }
 
 // --- INITIALIZATION ---
 async function init() {
     await loadData();
-    setupCustomLists();
+    setupCustomLists(); 
     setupEventListeners();
     setupBoardPanning();
-
+    
     const container = document.getElementById('canvas-container');
     state.panX = container.clientWidth / 2 - 200;
     state.panY = container.clientHeight / 2 - 100;
     updateTransform();
-
+    
     loadFromLocalStorage();
 }
 
 async function loadData() {
     try {
-        const [boardsRes, pedalsRes] = await Promise.all([
-            fetch('./data/boards.json').catch(err => null),
-            fetch('./data/pedals.json').catch(err => null)
+        const [boardsRes, pedalsRes] = await Promise.all([ 
+            fetch('./data/boards.json').catch(err => null), 
+            fetch('./data/pedals.json').catch(err => null) 
         ]);
-
+        
         if (boardsRes && boardsRes.ok) state.boards = await boardsRes.json();
         if (pedalsRes && pedalsRes.ok) state.pedals = normalizePedals(await pedalsRes.json());
-
     } catch (e) {
         console.error("Fatal network error during loadData:", e);
     }
@@ -60,12 +57,12 @@ function setupCustomLists() {
     const previewOverlay = document.getElementById('preview-overlay');
     const previewImg = document.getElementById('preview-image');
     const previewName = document.getElementById('preview-name');
-
-    // Reusable factory for highly performant lists
+    
+       // Reusable factory for highly performant lists
     function createListManager(inputId, listId, data, formatText, onSelect, onHighlight) {
         const input = document.getElementById(inputId);
         const list = document.getElementById(listId);
-
+        
         const nodes = [];
         let visibleNodes = [];
         let activeIndex = -1;
@@ -76,15 +73,14 @@ function setupCustomLists() {
             div.className = 'list-item';
             const text = formatText(item);
             div.innerText = text;
-
-            const nodeObj = {
-                el: div,
+            
+            const nodeObj = { 
+                el: div, 
                 item: item,
                 // CACHE THE TEXT IN MEMORY! No more reading from the DOM!
-                searchString: text.toLowerCase().replace(/-/g, '')
+                searchString: text.toLowerCase().replace(/-/g, '') 
             };
-
-            // Using mousedown prevents the input from stealing focus and hiding the list too early
+            
             div.onmousedown = (e) => {
                 e.preventDefault();
                 onSelect(item);
@@ -92,28 +88,28 @@ function setupCustomLists() {
                 input.blur();
                 if (onHighlight) onHighlight(null);
             };
-
+            
             div.addEventListener('mouseenter', () => setHighlight(visibleNodes.indexOf(nodeObj), false));
-
+            
             list.appendChild(div);
             nodes.push(nodeObj);
         }
 
         data.forEach(addNode);
 
-        // Blazing fast memory-only filter with Fuzzy Search and Auto-Highlight
+        // Blazing fast memory-only filter
         function filterList(text) {
             const searchTerms = text.toLowerCase().replace(/-/g, '').split(' ').filter(t => t.trim() !== '');
-
+            
             visibleNodes = [];
             let count = 0;
 
             nodes.forEach(node => {
-                node.el.classList.remove('highlighted');
-
+                node.el.classList.remove('highlighted'); 
+                
                 // Compare against the cached string in memory (Instantaneous)
                 const matches = searchTerms.every(term => node.searchString.includes(term));
-
+                
                 // Hard cap at 50 to keep the DOM blazing fast
                 if ((searchTerms.length === 0 || matches) && count < 50) {
                     node.el.style.display = '';
@@ -123,9 +119,9 @@ function setupCustomLists() {
                     node.el.style.display = 'none';
                 }
             });
-
-            list.scrollTop = 0; // Reset scroll on new search
-
+            
+            list.scrollTop = 0; 
+            
             // Auto-highlight the top result if typing
             if (visibleNodes.length > 0 && text.trim() !== '') {
                 setHighlight(0, true);
@@ -141,30 +137,30 @@ function setupCustomLists() {
             if (activeIndex >= 0 && activeIndex < visibleNodes.length) {
                 visibleNodes[activeIndex].el.classList.remove('highlighted');
             }
-
+            
             activeIndex = index;
             if (activeIndex < 0) activeIndex = visibleNodes.length - 1;
             if (activeIndex >= visibleNodes.length) activeIndex = 0;
-
+            
             const activeNode = visibleNodes[activeIndex];
             activeNode.el.classList.add('highlighted');
-
+            
             if (scroll) activeNode.el.scrollIntoView({ block: 'nearest' });
             if (onHighlight) onHighlight(activeNode.item);
         }
 
-        input.addEventListener('focus', () => {
-            list.classList.add('active');
-            input.value = '';
-            filterList('');
+        input.addEventListener('focus', () => { 
+            list.classList.add('active'); 
+            input.value = ''; 
+            filterList(''); 
         });
-
+        
         input.addEventListener('input', (e) => filterList(e.target.value));
 
         // Keyboard Navigation
         input.addEventListener('keydown', (e) => {
             if (!list.classList.contains('active')) return;
-
+            
             if (e.key === 'ArrowDown') {
                 e.preventDefault();
                 setHighlight(activeIndex + 1);
@@ -197,8 +193,8 @@ function setupCustomLists() {
 
     // Initialize Board List
     boardListManager = createListManager(
-        'board-search', 'board-list', state.boards,
-        b => b.name,
+        'board-search', 'board-list', state.boards, 
+        b => b.name, 
         b => { setBoard(b); document.getElementById('board-search').value = b.name; }
     );
 
@@ -206,8 +202,8 @@ function setupCustomLists() {
 
     // Initialize Pedal List with full scrolling and previews
     createListManager(
-        'pedal-search', 'pedal-list', state.pedals,
-        p => `${p.brand} - ${p.name}`,
+        'pedal-search', 'pedal-list', state.pedals, 
+        p => `${p.brand} - ${p.name}`, 
         p => { addPedalToBoard(p); document.getElementById('pedal-search').value = ''; },
         p => {
             clearTimeout(previewTimeout); // Cancel previous load request
@@ -254,13 +250,13 @@ function setupEventListeners() {
     });
 
     document.getElementById('clear-board-btn').addEventListener('click', clearPedals);
-
+    
     document.getElementById('canvas-container').addEventListener('wheel', (e) => {
         e.preventDefault();
         const zoomDelta = e.deltaY > 0 ? 0.9 : 1.1;
         state.zoom = Math.max(0.2, Math.min(state.zoom * zoomDelta, 3));
         updateTransform();
-        saveToLocalStorage();
+        saveToLocalStorage(); 
     }, {passive: false});
 }
 
@@ -272,7 +268,7 @@ function setBoard(board) {
         boardEl.classList.remove('empty-board');
         boardEl.style.width = board.width + 'px';
         boardEl.style.height = board.height + 'px';
-        boardEl.innerHTML = '';
+        boardEl.innerHTML = ''; 
     } else {
         boardEl.classList.add('empty-board');
         boardEl.style.width = '';
@@ -287,7 +283,7 @@ function setupBoardPanning() {
     let isPanning = false;
     let startX, startY;
     const container = document.getElementById('canvas-container');
-
+    
     container.addEventListener('mousedown', (e) => {
         if (e.target === container || (e.target.closest('#board') && !e.target.closest('.pedal'))) {
             isPanning = true;
@@ -306,7 +302,7 @@ function setupBoardPanning() {
     window.addEventListener('mouseup', () => {
         if (isPanning) {
             isPanning = false;
-            saveToLocalStorage();
+            saveToLocalStorage(); 
         }
     });
 }
@@ -321,7 +317,7 @@ let highestZ = 10;
 function renderPlacedPedals() {
     const boardEl = document.getElementById('board');
     Array.from(boardEl.querySelectorAll('.pedal')).forEach(el => el.remove());
-
+    
     state.placedPedals.forEach(p => {
         const pedalData = state.pedals.find(pd => pd.id === p.pedalId);
         if (pedalData) renderPedalDOM(pedalData, p.x, p.y, p.instanceId);
@@ -331,7 +327,7 @@ function renderPlacedPedals() {
 
 function addPedalToBoard(pedalData, savedX = null, savedY = null, instanceId = null) {
     const id = instanceId || `pedal_${Date.now()}_${Math.floor(Math.random()*1000)}`;
-
+    
     let boardW = state.selectedBoard ? state.selectedBoard.width : document.getElementById('canvas-container').clientWidth;
     let boardH = state.selectedBoard ? state.selectedBoard.height : document.getElementById('canvas-container').clientHeight;
 
@@ -355,10 +351,10 @@ function renderPedalDOM(pedalData, x, y, id) {
     el.style.left = x + 'px';
     el.style.top = y + 'px';
     el.style.zIndex = ++highestZ;
-
+    
     const shortName = pedalData.name ? pedalData.name.split(' ')[0] : 'Pedal';
     el.innerHTML = `<img src="${pedalData.image}" draggable="false" onerror="this.src='https://placehold.co/${pedalData.width}x${pedalData.height}/444/fff?text=${shortName}'">`;
-
+    
     el.addEventListener('dblclick', () => removePedal(id));
     el.addEventListener('mousedown', () => el.style.zIndex = ++highestZ);
 
@@ -370,7 +366,7 @@ let draggingEl = null;
 let startMouseX, startMouseY, startElLeft, startElTop;
 
 document.addEventListener('mousedown', (e) => {
-    if (e.button !== 0) return;
+    if (e.button !== 0) return; 
     const pedalEl = e.target.closest('.pedal');
     if (pedalEl) {
         draggingEl = pedalEl;
@@ -382,8 +378,8 @@ document.addEventListener('mousedown', (e) => {
 });
 
 document.addEventListener('mousemove', (e) => {
-    if (!draggingEl) return;
-
+    if (!draggingEl) return; 
+    
     let dx = (e.clientX - startMouseX) / state.zoom;
     let dy = (e.clientY - startMouseY) / state.zoom;
     let newLeft = startElLeft + dx;
@@ -399,14 +395,14 @@ document.addEventListener('mousemove', (e) => {
 });
 
 document.addEventListener('mouseup', () => {
-    if (draggingEl) {
+    if (draggingEl) { 
         const pState = state.placedPedals.find(p => p.instanceId === draggingEl.id);
         if(pState) {
             pState.x = parseFloat(draggingEl.style.left);
             pState.y = parseFloat(draggingEl.style.top);
         }
-        saveToLocalStorage();
-        draggingEl = null;
+        saveToLocalStorage(); 
+        draggingEl = null; 
     }
 });
 
@@ -415,14 +411,14 @@ function removePedal(instanceId) {
     state.placedPedals = state.placedPedals.filter(p => p.instanceId !== instanceId);
     const el = document.getElementById(instanceId);
     if(el) el.remove();
-    updateSidebarList();
+    updateSidebarList(); 
     saveToLocalStorage();
 }
 
 function clearPedals() {
-    state.placedPedals = [];
+    state.placedPedals = []; 
     Array.from(document.getElementById('board').querySelectorAll('.pedal')).forEach(el => el.remove());
-    updateSidebarList();
+    updateSidebarList(); 
     saveToLocalStorage();
 }
 
@@ -443,7 +439,7 @@ function updateSidebarList() {
 // --- STORAGE ---
 function saveToLocalStorage() {
     localStorage.setItem('pedalboard_v4_state', JSON.stringify({
-        board: state.selectedBoard,
+        board: state.selectedBoard, 
         placedPedals: state.placedPedals,
         panX: state.panX,
         panY: state.panY,
@@ -456,7 +452,7 @@ function loadFromLocalStorage() {
         const saved = localStorage.getItem('pedalboard_v4_state');
         if (saved) {
             const parsed = JSON.parse(saved);
-
+            
             if (parsed.zoom !== undefined) state.zoom = parsed.zoom;
             if (parsed.panX !== undefined) state.panX = parsed.panX;
             if (parsed.panY !== undefined) state.panY = parsed.panY;
@@ -470,8 +466,8 @@ function loadFromLocalStorage() {
                 document.getElementById('board-search').value = parsed.board.name;
                 setBoard(parsed.board);
             }
-
-            state.placedPedals = parsed.placedPedals || [];
+            
+            state.placedPedals = parsed.placedPedals || []; 
             renderPlacedPedals();
         }
     } catch (e) {
