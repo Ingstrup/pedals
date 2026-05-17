@@ -94,8 +94,20 @@ function setupCustomLists() {
     const previewOverlay = document.getElementById('preview-overlay');
     const previewImg = document.getElementById('preview-image');
     const previewName = document.getElementById('preview-name');
-    
-       // Reusable factory for highly performant lists
+
+    // Add a board dimensions element to the shared preview overlay if not present
+    let boardPreviewDimensions = document.getElementById('board-preview-dimensions');
+    if (!boardPreviewDimensions) {
+        boardPreviewDimensions = document.createElement('div');
+        boardPreviewDimensions.id = 'board-preview-dimensions';
+        boardPreviewDimensions.style.color = '#bbb';
+        boardPreviewDimensions.style.fontSize = '1.05rem';
+        boardPreviewDimensions.style.textAlign = 'center';
+        boardPreviewDimensions.style.marginTop = '8px';
+        previewOverlay.appendChild(boardPreviewDimensions);
+    }
+
+    // Reusable factory for highly performant lists
     function createListManager(inputId, listId, data, formatText, onSelect, onHighlight) {
         const input = document.getElementById(inputId);
         const list = document.getElementById(listId);
@@ -257,6 +269,31 @@ function setupCustomLists() {
             setBoard(b);
             const boardName = b && (b.name || b.Name) ? (b.name || b.Name) : 'Unnamed Board';
             document.getElementById('board-search').value = boardName;
+        },
+        // onHighlight for board preview (reuse pedal preview overlay)
+        b => {
+            clearTimeout(previewOverlay._timeout);
+            if (b) {
+                previewOverlay._timeout = setTimeout(() => {
+                    if (b.image) {
+                        previewImg.src = b.image;
+                        previewImg.classList.remove('hidden');
+                    } else {
+                        previewImg.src = '';
+                        previewImg.classList.add('hidden');
+                    }
+                    previewName.innerText = b.name || 'Unnamed Board';
+                    // Show dimensions in cm (rounded to 1 decimal)
+                    const wcm = (b.width / 10).toFixed(1);
+                    const hcm = (b.height / 10).toFixed(1);
+                    boardPreviewDimensions.innerText = `${wcm} × ${hcm} cm`;
+                    boardPreviewDimensions.style.display = '';
+                    previewOverlay.classList.remove('hidden');
+                }, 100);
+            } else {
+                previewOverlay.classList.add('hidden');
+                boardPreviewDimensions.style.display = 'none';
+            }
         }
     );
 
@@ -275,21 +312,26 @@ function setupCustomLists() {
                     previewImg.src = p.image;
                     previewName.innerText = p.name;
                     previewOverlay.classList.remove('hidden');
+                    boardPreviewDimensions.style.display = 'none';
                 }, 100);
             } else {
                 previewOverlay.classList.add('hidden');
+                boardPreviewDimensions.style.display = 'none';
             }
         }
     );
 
-    // Close lists if clicking outside
+    // Close lists and previews if clicking outside
     document.addEventListener('click', (e) => {
         if (!e.target.closest('#board-search') && !e.target.closest('#board-list')) {
             document.getElementById('board-list').classList.remove('active');
+            previewOverlay.classList.add('hidden');
+            boardPreviewDimensions.style.display = 'none';
         }
         if (!e.target.closest('#pedal-search') && !e.target.closest('#pedal-list')) {
             document.getElementById('pedal-list').classList.remove('active');
             previewOverlay.classList.add('hidden');
+            boardPreviewDimensions.style.display = 'none';
         }
     });
 }
