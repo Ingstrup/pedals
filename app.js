@@ -30,6 +30,7 @@ function normalizeBoards(raw) {
     if (!Array.isArray(raw)) return [];
     return raw.map(b => {
         const name = b.name || b.Name || 'Unnamed Board';
+        const brand = b.brand || b.Brand || 'Unknown'; // Brand extracted!
         let widthRaw = b.width !== undefined ? b.width : (b.Width !== undefined ? b.Width : 600);
         let heightRaw = b.height !== undefined ? b.height : (b.Height !== undefined ? b.Height : 300);
         const width = widthRaw < 100 ? Math.round(widthRaw * 25.4) : Math.round(widthRaw);
@@ -40,7 +41,7 @@ function normalizeBoards(raw) {
             const filename = image.split(/[\\/]/).pop();
             image = './data/images/boards/' + filename;
         }
-        return { id, name, width, height, image };
+        return { id, name, brand, width, height, image };
     });
 }
 
@@ -128,7 +129,8 @@ function setupCustomLists() {
         previewOverlay.appendChild(boardPreviewDimensions);
     }
 
-    function createListManager(inputId, listId, data, formatText, onSelect, onHighlight) {
+    // List Manager abstracted to take searchKeys!
+    function createListManager(inputId, listId, data, formatText, searchKeys, onSelect, onHighlight) {
         const input = document.getElementById(inputId);
         const list = document.getElementById(listId);
         const nodes = [];
@@ -138,10 +140,26 @@ function setupCustomLists() {
         const CHUNK_SIZE = 50;
         let observer = null;
         let sentinel = null;
+        let savedScrollTop = 0;
+
+        // Track scroll position to remember exactly where the user left off
+        list.addEventListener('scroll', () => {
+            if (list.classList.contains('active')) {
+                savedScrollTop = list.scrollTop;
+            }
+        }, { passive: true });
 
         data.forEach(item => {
             let text = formatText(item);
-            nodes.push({ item, searchString: text.toLowerCase().replace(/-/g, ''), text, el: null });
+
+            // Build dynamic search string based on the provided keys
+            let searchString = searchKeys
+                .map(key => item[key] || '')
+                .join(' ')
+                .toLowerCase()
+                .replace(/[^a-z0-9\s]/g, '');
+
+            nodes.push({ item, searchString, text, el: null });
         });
 
         function createNodeEl(nodeObj) {
@@ -191,7 +209,7 @@ function setupCustomLists() {
         }
 
         function filterList(text) {
-            const searchTerms = text.toLowerCase().replace(/-/g, '').split(' ').filter(t => t.trim() !== '');
+            const searchTerms = text.toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/).filter(t => t);
             filteredNodes = nodes.filter(node =>
                 searchTerms.every(term => node.searchString.includes(term))
             );
@@ -221,7 +239,13 @@ function setupCustomLists() {
             }
         }
 
-        input.addEventListener('focus', () => { list.classList.add('active'); input.value = ''; filterList(''); });
+        input.addEventListener('focus', () => {
+            list.classList.add('active');
+            input.select();
+            // Restore scroll memory!
+            setTimeout(() => { list.scrollTop = savedScrollTop; }, 0);
+        });
+
         input.addEventListener('input', (e) => filterList(e.target.value));
 
         input.addEventListener('keydown', (e) => {
@@ -243,17 +267,18 @@ function setupCustomLists() {
         filterList('');
         return { addNode: (item) => {
                 let text = formatText(item);
-                nodes.push({ item, searchString: text.toLowerCase().replace(/-/g, ''), text, el: null });
+                let searchString = searchKeys.map(key => item[key] || '').join(' ').toLowerCase().replace(/[^a-z0-9\s]/g, '');
+                nodes.push({ item, searchString, text, el: null });
                 filterList(input.value || '');
             }};
     }
 
     boardListManager = createListManager(
         'board-search', 'board-list', state.boards,
-        b => b.name || 'Unnamed Board',
+        b => (b.brand && b.brand !== 'Unknown') ? `${b.brand} - ${b.name}` : b.name,
+        ['brand', 'name'], // Dynamic keys
         b => {
             addBoardToCanvas(b);
-            document.getElementById('board-search').value = b.name || 'Unnamed Board';
         },
         b => {
             clearTimeout(previewOverlay._timeout);
@@ -277,7 +302,10 @@ function setupCustomLists() {
     createListManager(
         'pedal-search', 'pedal-list', state.pedals,
         p => `${p.brand} - ${p.name}`,
-        p => { addPedalToBoard(p); document.getElementById('pedal-search').value = ''; },
+        ['brand', 'name'], // Dynamic keys
+        p => {
+            addPedalToBoard(p);
+        },
         p => {
             clearTimeout(previewTimeout);
             if (p) {
@@ -306,11 +334,10 @@ function setupEventListeners() {
         const w = Number.parseFloat(document.getElementById('custom-w').value);
         const h = Number.parseFloat(document.getElementById('custom-h').value);
         if (w > 0 && h > 0) {
-            const customBoard = { id: 'custom_' + Date.now(), name: `Custom (${w}x${h} cm)`, width: w * 10, height: h * 10 };
+            const customBoard = { id: 'custom_' + Date.now(), name: `Custom (${w}x${h} cm)`, brand: 'Custom', width: w * 10, height: h * 10 };
             state.boards.push(customBoard);
             boardListManager.addNode(customBoard);
             addBoardToCanvas(customBoard);
-            document.getElementById('board-search').value = customBoard.name;
             document.getElementById('board-list').classList.remove('active');
         } else {
             alert("Please enter valid dimensions in cm.");
@@ -421,7 +448,7 @@ function removeBoardFromCanvas(boardId) {
 function setupBoardPanning() {
     const container = document.getElementById('canvas-container');
     container.addEventListener('mousedown', (e) => {
-        // Clear board selection if clicking empty canvas (Miro panning removed)
+        // Clear board selection if clicking empty canvas
         if (e.target === container || e.target.classList.contains('empty-board') || (e.target.closest('#board-wrapper') && !e.target.closest('.pedal') && !e.target.closest('.placed-board'))) {
             state.selectedBoardId = null;
             updateBoardInfoPanel();
@@ -466,7 +493,6 @@ function renderBoards() {
         wrapper.appendChild(placeholder);
     }
 
-    // Render Boards & Nested Pedals
     state.placedBoards.forEach(board => {
         const boardDiv = document.createElement('div');
         boardDiv.className = 'placed-board';
@@ -599,7 +625,6 @@ function renderPedalDOM(pedalData, x, y, instanceId, parentEl, boardId) {
     const shortName = pedalData.name ? pedalData.name.split(' ')[0] : 'Pedal';
     el.innerHTML = `<img src="${pedalData.image}" draggable="false" onerror="this.src='https://placehold.co/${pedalData.width}x${pedalData.height}/444/fff?text=${shortName}'">`;
 
-    // Deletion event!
     el.addEventListener('dblclick', () => removePedal(instanceId));
     el.addEventListener('mousedown', () => el.style.zIndex = ++highestZ);
     parentEl.appendChild(el);
@@ -609,14 +634,14 @@ function renderPedalDOM(pedalData, x, y, instanceId, parentEl, boardId) {
 let draggingEl = null;
 let startMouseX, startMouseY, startElLeft, startElTop;
 let dragSource = null;
-let hasDraggedPedal = false; // The flag that fixes the double-click bug!
+let hasDraggedPedal = false;
 
 document.addEventListener('mousedown', (e) => {
     if (e.button !== 0) return;
     const pedalEl = e.target.closest('.pedal');
     if (pedalEl) {
         draggingEl = pedalEl;
-        hasDraggedPedal = false; // Reset the drag flag on click
+        hasDraggedPedal = false;
         startMouseX = e.clientX;
         startMouseY = e.clientY;
         startElLeft = parseFloat(draggingEl.style.left || 0);
@@ -632,7 +657,7 @@ document.addEventListener('mousedown', (e) => {
 
 document.addEventListener('mousemove', (e) => {
     if (!draggingEl) return;
-    hasDraggedPedal = true; // Mark that the pedal has actually moved
+    hasDraggedPedal = true;
     let dx = (e.clientX - startMouseX) / state.zoom;
     let dy = (e.clientY - startMouseY) / state.zoom;
     draggingEl.style.left = (startElLeft + dx) + 'px';
@@ -641,8 +666,6 @@ document.addEventListener('mousemove', (e) => {
 
 document.addEventListener('mouseup', (e) => {
     if (draggingEl && dragSource) {
-        // If we just clicked (no drag), don't reparent or re-render!
-        // This preserves the DOM element so the double-click event can fire properly.
         if (!hasDraggedPedal) {
             draggingEl = null;
             dragSource = null;
