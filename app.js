@@ -414,6 +414,7 @@ function setupEventListeners() {
 function setBoard(board) {
     state.selectedBoard = board;
     const boardEl = document.getElementById('board');
+    boardEl.classList.remove('has-image');
     console.log('Rendering board:', board);
     if (board) {
         boardEl.classList.remove('empty-board');
@@ -428,10 +429,11 @@ function setBoard(board) {
             boardEl.style.backgroundPosition = 'center';
             boardEl.style.border = 'none';
             boardEl.style.backgroundColor = 'transparent';
+            boardEl.classList.add('has-image');
         } else {
             boardEl.style.backgroundImage = '';
             boardEl.style.border = '';
-            boardEl.style.backgroundColor = '';
+            boardEl.style.backgroundColor = 'transparent'; // Force transparent always
         }
     } else {
         boardEl.classList.add('empty-board');
@@ -440,7 +442,7 @@ function setBoard(board) {
         boardEl.innerHTML = '<span class="board-placeholder">Select or create a board</span>';
         boardEl.style.backgroundImage = '';
         boardEl.style.border = '';
-        boardEl.style.backgroundColor = '';
+        boardEl.style.backgroundColor = 'transparent'; // Force transparent always
     }
     renderPlacedPedals();
     saveToLocalStorage();
@@ -644,3 +646,46 @@ function loadFromLocalStorage() {
 }
 
 window.addEventListener('DOMContentLoaded', init);
+
+// --- CANVAS BACKGROUND SHADE SELECTOR ---
+const CANVAS_SHADES = [
+    { name: "Light Silver", color: "#ededed" },
+    { name: "Soft Stone", color: "#c7c7c7" },
+    { name: "Mid Grey", color: "#8a8a8a" },
+    { name: "Slate", color: "#44474a" },
+    { name: "Deep Charcoal", color: "#18191b" }
+];
+
+function setupBgShadeSelector() {
+    const selector = document.getElementById('bg-shade-selector');
+    if (!selector) return;
+    selector.innerHTML = '';
+    const saved = localStorage.getItem('pedalboard_bg_shade');
+    let current = saved || CANVAS_SHADES[0].color;
+    CANVAS_SHADES.forEach(shade => {
+        const swatch = document.createElement('div');
+        swatch.className = 'bg-shade' + (current === shade.color ? ' selected' : '');
+        swatch.title = shade.name;
+        swatch.style.background = shade.color;
+        swatch.onclick = () => {
+            document.querySelectorAll('.bg-shade').forEach(el => el.classList.remove('selected'));
+            swatch.classList.add('selected');
+            setCanvasBgShade(shade.color);
+            localStorage.setItem('pedalboard_bg_shade', shade.color);
+        };
+        selector.appendChild(swatch);
+    });
+    setCanvasBgShade(current);
+}
+
+function setCanvasBgShade(color) {
+    const canvas = document.getElementById('canvas-container');
+    if (canvas) {
+        canvas.style.backgroundColor = color;
+    }
+}
+
+// Call after DOMContentLoaded
+window.addEventListener('DOMContentLoaded', () => {
+    setupBgShadeSelector();
+});
