@@ -87,6 +87,88 @@ export function setupBoardPanning() {
     });
 }
 
+// Touch gestures: single-finger pan over the canvas background, two-finger pinch zoom.
+// Mouse drag on a pedal/board is left to the existing mouse handlers and the browser's
+// compatibility mouse events for touch.
+export function setupTouchGestures() {
+    const container = document.getElementById('canvas-container');
+    const active = new Map(); // pointerId -> { x, y }
+    let mode = null; // 'pan' | 'pinch' | null
+    let panStart = null;
+    let pinchStart = null;
+
+    const isBackground = (target) => {
+        if (target === container) return true;
+        if (target.classList && target.classList.contains('empty-board')) return true;
+        return target.closest && target.closest('#board-wrapper') && !target.closest('.pedal') && !target.closest('.placed-board');
+    };
+
+    container.addEventListener('pointerdown', (e) => {
+        if (e.pointerType !== 'touch') return;
+        if (!isBackground(e.target)) return;
+        active.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        e.preventDefault();
+        if (active.size === 1) {
+            mode = 'pan';
+            panStart = { x: e.clientX, y: e.clientY, panX: state.panX, panY: state.panY };
+        } else if (active.size === 2) {
+            const [a, b] = [...active.values()];
+            const dist = Math.hypot(b.x - a.x, b.y - a.y);
+            const rect = container.getBoundingClientRect();
+            const midX = (a.x + b.x) / 2 - rect.left;
+            const midY = (a.y + b.y) / 2 - rect.top;
+            pinchStart = {
+                dist,
+                zoom: state.zoom,
+                worldX: (midX - state.panX) / state.zoom,
+                worldY: (midY - state.panY) / state.zoom
+            };
+            mode = 'pinch';
+            panStart = null;
+        }
+    });
+
+    container.addEventListener('pointermove', (e) => {
+        if (e.pointerType !== 'touch') return;
+        if (!active.has(e.pointerId)) return;
+        active.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        if (mode === 'pan' && panStart && active.size === 1) {
+            state.panX = panStart.panX + (e.clientX - panStart.x);
+            state.panY = panStart.panY + (e.clientY - panStart.y);
+            updateTransform();
+        } else if (mode === 'pinch' && pinchStart && active.size === 2) {
+            const [a, b] = [...active.values()];
+            const dist = Math.hypot(b.x - a.x, b.y - a.y);
+            const rect = container.getBoundingClientRect();
+            const midX = (a.x + b.x) / 2 - rect.left;
+            const midY = (a.y + b.y) / 2 - rect.top;
+            state.zoom = Math.max(0.2, Math.min(pinchStart.zoom * (dist / pinchStart.dist), 4));
+            state.panX = midX - pinchStart.worldX * state.zoom;
+            state.panY = midY - pinchStart.worldY * state.zoom;
+            updateTransform();
+        }
+    });
+
+    const release = (e) => {
+        if (e.pointerType !== 'touch') return;
+        if (!active.delete(e.pointerId)) return;
+        if (active.size === 0) {
+            mode = null;
+            panStart = null;
+            pinchStart = null;
+            saveToLocalStorage();
+        } else if (active.size === 1) {
+            // Dropping from pinch to a single finger: restart pan from current finger.
+            const [pt] = [...active.values()];
+            mode = 'pan';
+            panStart = { x: pt.x, y: pt.y, panX: state.panX, panY: state.panY };
+            pinchStart = null;
+        }
+    };
+    container.addEventListener('pointerup', release);
+    container.addEventListener('pointercancel', release);
+}
+
 export function renderBoards() {
     const wrapper = document.getElementById('board-wrapper');
     wrapper.innerHTML = '';
