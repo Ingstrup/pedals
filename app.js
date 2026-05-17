@@ -423,10 +423,13 @@ function setupEventListeners() {
 
 // --- BOARD LOGIC ---
 function addBoardToCanvas(board) {
+    // 1. Check if the canvas is completely empty before adding
+    const isFirstItem = state.placedBoards.length === 0 && state.canvasPedals.length === 0;
+
     if (!state.placedBoards.find(b => b.id === board.id)) {
         state.placedBoards.push({
             ...board,
-            x: 100 + state.placedBoards.length * 40,
+            x: 100 + state.placedBoards.length * 40, // Keeps the stagger for subsequent boards
             y: 100 + state.placedBoards.length * 40,
             pedals: []
         });
@@ -434,6 +437,11 @@ function addBoardToCanvas(board) {
     state.selectedBoardId = board.id;
     renderBoards();
     saveToLocalStorage();
+
+    // 2. If it was the first item, automatically center and zoom!
+    if (isFirstItem) {
+        fitToScreen();
+    }
 }
 
 function removeBoardFromCanvas(boardId) {
