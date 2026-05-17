@@ -128,19 +128,10 @@ export function renderBoards() {
         label.style.pointerEvents = 'none';
         boardDiv.appendChild(label);
 
-        boardDiv.onmousedown = (e) => {
-            if (e.target !== boardDiv && !e.target.classList.contains('board-label')) return;
-            state.selectedBoardId = board.id;
-            updateBoardInfoPanel();
-            updateOnCanvasSidebar();
-            Array.from(document.querySelectorAll('.placed-board')).forEach(el => el.style.boxShadow = 'none');
-            boardDiv.style.boxShadow = '0 0 0 4px #2a9fd6';
-        };
-
         let isDragging = false;
         let dragStartMouseX = 0, dragStartMouseY = 0;
         let dragStartBoardX = 0, dragStartBoardY = 0;
-        
+
         const onMouseMove = (e) => {
             if (!isDragging) return;
             const dx = (e.clientX - dragStartMouseX) / state.zoom;
@@ -160,6 +151,13 @@ export function renderBoards() {
         };
         boardDiv.addEventListener('mousedown', (e) => {
             if (e.target !== boardDiv && !e.target.classList.contains('board-label')) return;
+
+            state.selectedBoardId = board.id;
+            updateBoardInfoPanel();
+            updateOnCanvasSidebar();
+            Array.from(document.querySelectorAll('.placed-board')).forEach(el => el.style.boxShadow = 'none');
+            boardDiv.style.boxShadow = '0 0 0 4px #2a9fd6';
+
             isDragging = true;
             dragStartMouseX = e.clientX;
             dragStartMouseY = e.clientY;
