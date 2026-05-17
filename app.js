@@ -4,6 +4,7 @@ import { loadFromLocalStorage, saveToLocalStorage } from './storage.js';
 import { setupCustomLists, setupBgShadeSelector, boardListManager } from './sidebar.js';
 import { setupBoardPanning, fitToScreen, renderBoards, addBoardToCanvas, updateTransform, removeBoardFromCanvas, removePedal } from './canvas.js';
 import { setupDragAndDrop } from './dragDrop.js';
+import { exportCanvasToPng } from './export.js';
 
 // Expose these two functions to the global window so the inline HTML onclicks in sidebar.js still work
 window.removeBoardFromCanvasGlobal = removeBoardFromCanvas;
@@ -63,6 +64,13 @@ function setupEventListeners() {
     }, {passive: false});
     
     document.getElementById('fit-to-screen-btn').addEventListener('click', fitToScreen);
+
+    document.getElementById('export-png-btn').addEventListener('click', () => {
+        exportCanvasToPng().catch(err => {
+            console.error(err);
+            alert('PNG export failed: ' + err);
+        });
+    });
 
     // Export JSON
     document.getElementById('export-json-btn').addEventListener('click', () => {
