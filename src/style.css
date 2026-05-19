@@ -7,9 +7,9 @@
     --pp-sidebar-border: #2a2d31;
     --pp-canvas-bg: #18191b;
     --pp-canvas-grid: rgba(255, 255, 255, 0.04);
-    --pp-accent: #4cc9f0;
-    --pp-accent-soft: rgba(76, 201, 240, .22);
-    --pp-success: #4ade80;
+    --pp-accent: #4caf50;
+    --pp-accent-soft: rgba(76, 175, 80, .22);
+    --pp-success: #7ee495;
     --pp-danger: #ef4444;
     --pp-board-frame: #2a2d31;
 }
@@ -294,7 +294,7 @@ body:not(.kbd-nav) .list-item:hover {
 
 .list-item.highlighted {
     background: var(--pp-accent);
-    color: #07101a;
+    color: #fff;
     font-weight: 600;
 }
 
