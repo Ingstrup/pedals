@@ -1,0 +1,425 @@
+/* ===================================================================
+   Pedalboard Planner — layered on top of Bootstrap 5 dark theme
+   =================================================================== */
+
+:root {
+    --pp-sidebar-bg: #181a1d;
+    --pp-sidebar-border: #2a2d31;
+    --pp-canvas-bg: #18191b;
+    --pp-canvas-grid: rgba(255, 255, 255, 0.04);
+    --pp-accent: #4cc9f0;
+    --pp-accent-soft: rgba(76, 201, 240, .22);
+    --pp-success: #4ade80;
+    --pp-danger: #ef4444;
+    --pp-board-frame: #2a2d31;
+}
+
+html, body {
+    height: 100vh;
+    margin: 0;
+    overflow: hidden;
+}
+
+body {
+    display: flex;
+    background-color: var(--pp-canvas-bg);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                 "Helvetica Neue", Arial, sans-serif;
+}
+
+/* ---------- SIDEBAR ---------- */
+
+#sidebar {
+    width: 320px;
+    min-width: 320px;
+    background-color: var(--pp-sidebar-bg);
+    border-right: 1px solid var(--pp-sidebar-border);
+    z-index: 10;
+    position: relative;
+    overflow: hidden;
+}
+
+.sidebar-brand {
+    border-bottom: 1px solid var(--pp-sidebar-border);
+}
+
+.brand-icon {
+    color: var(--pp-accent);
+    font-size: 1.4rem;
+}
+
+.sidebar-brand h1 {
+    letter-spacing: .2px;
+}
+
+.sidebar-body {
+    overflow: hidden;
+    min-height: 0;
+}
+
+.sidebar-footer {
+    border-top: 1px solid var(--pp-sidebar-border);
+}
+
+.step-badge {
+    display: inline-flex;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--pp-accent-soft);
+    color: var(--pp-accent);
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: .7rem;
+    margin-right: 4px;
+    vertical-align: 1px;
+}
+
+.autosave-indicator {
+    opacity: .55;
+    transition: opacity .2s ease, color .2s ease;
+}
+
+.autosave-indicator.flash {
+    opacity: 1;
+    color: var(--pp-success);
+}
+
+/* ---------- ON-CANVAS LIST (sidebar) ---------- */
+
+#on-canvas-list {
+    min-height: 0;
+}
+
+.board-list-item {
+    background: rgba(255, 255, 255, 0.03);
+    padding: 8px 10px;
+    margin-bottom: 6px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    border-left: 3px solid transparent;
+    transition: background .15s ease, border-color .15s ease;
+}
+
+.board-list-item:hover {
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.board-list-item.selected {
+    border-left-color: var(--pp-accent);
+    background: rgba(76, 201, 240, 0.10);
+}
+
+.board-list-item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 6px;
+}
+
+.pedal-sub-list {
+    list-style-type: none;
+    padding-left: 8px;
+    margin: 6px 0 0;
+    border-left: 1px dashed #4a4d52;
+    margin-left: 4px;
+}
+
+.pedal-sub-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.78rem;
+    padding: 2px 0 2px 8px;
+    color: #c0c4c9;
+}
+
+.remove-btn {
+    background: transparent;
+    color: var(--pp-danger);
+    border: none;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.remove-btn:hover {
+    background: var(--pp-danger);
+    color: #fff;
+}
+
+/* ---------- MAIN / CANVAS ---------- */
+
+#main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    position: relative;
+    min-width: 0;
+}
+
+#toolbar {
+    background-color: #1c1e21;
+    border-bottom: 1px solid var(--pp-sidebar-border);
+    z-index: 5;
+}
+
+#canvas-container {
+    flex: 1;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    position: relative;
+    background-color: var(--pp-canvas-bg);
+    background-image:
+        radial-gradient(var(--pp-canvas-grid) 1px, transparent 1px);
+    background-size: 20px 20px;
+    cursor: grab;
+}
+
+#canvas-container:active {
+    cursor: grabbing;
+}
+
+#board-wrapper {
+    position: absolute;
+    transform-origin: 0 0;
+    left: 0;
+    top: 0;
+    will-change: transform;
+}
+
+/* ---------- BOARDS ---------- */
+
+.placed-board {
+    margin: 0;
+    padding: 0;
+    position: absolute;
+    top: 0;
+    left: 0;
+    box-sizing: border-box;
+    border-radius: 8px;
+    transition: box-shadow .15s ease-in-out;
+}
+
+.placed-board.custom-frame {
+    border-radius: 0;
+    background-color: #242729;
+    box-shadow:
+        inset 0 0 15px rgba(0, 0, 0, 0.75),
+        0 6px 15px rgba(0, 0, 0, 0.5);
+    border-style: solid;
+    border-width: 12px;
+    border-top-color: #e2e6e9;
+    border-right-color: #abb0b3;
+    border-bottom-color: #8c9194;
+    border-left-color: #ccd0d3;
+}
+
+.placed-board.focused {
+    box-shadow:
+        0 0 0 2px var(--pp-accent),
+        0 6px 15px rgba(0, 0, 0, 0.5);
+}
+
+/* ---------- PEDALS ---------- */
+
+.pedal {
+    position: absolute;
+    cursor: grab;
+    user-select: none;
+    border-radius: 4px;
+}
+
+.pedal:active {
+    cursor: grabbing;
+}
+
+.pedal img {
+    width: 100%;
+    height: 100%;
+    border-radius: 4px;
+    pointer-events: none;
+    object-fit: contain;
+    image-rendering: -webkit-optimize-contrast;
+}
+
+.pedal.focused {
+    outline: 2px solid var(--pp-accent);
+    outline-offset: 2px;
+    box-shadow: 0 0 16px var(--pp-accent-soft);
+}
+
+/* ---------- CUSTOM SEARCH LISTS ---------- */
+
+.custom-list {
+    background: #111316;
+    border: 1px solid #2a2d31;
+    border-radius: 6px;
+    max-height: 220px;
+    overflow-y: auto;
+    display: none;
+    flex-direction: column;
+    margin-top: 4px;
+}
+
+.custom-list.active {
+    display: flex;
+}
+
+.list-item {
+    padding: 6px 10px;
+    color: #c5c9cd;
+    font-size: 0.85rem;
+    cursor: pointer;
+    border-bottom: 1px solid #1c1e21;
+    user-select: none;
+}
+
+.list-item:last-child {
+    border-bottom: none;
+}
+
+/* hover effect — only when NOT in keyboard-navigation mode */
+body:not(.kbd-nav) .list-item:hover {
+    background: rgba(76, 201, 240, 0.15);
+    color: #fff;
+}
+
+.list-item.highlighted {
+    background: var(--pp-accent);
+    color: #07101a;
+    font-weight: 600;
+}
+
+.list-sentinel {
+    height: 1px;
+    margin-top: -1px;
+}
+
+/* ---------- PREVIEW OVERLAY ---------- */
+
+#preview-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.85);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    pointer-events: none;
+    opacity: 1;
+    transition: opacity .15s ease-in-out;
+}
+
+#preview-overlay.hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
+#preview-image {
+    max-width: 60%;
+    max-height: 60%;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 1);
+    border-radius: 10px;
+}
+
+#preview-image[src=""],
+#preview-image.hidden {
+    display: none;
+}
+
+#preview-name {
+    margin-top: 18px;
+    color: #fff;
+    font-size: 1.75rem;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+    text-align: center;
+    max-width: 70%;
+}
+
+#board-preview-dimensions {
+    color: #bbb;
+    font-size: 1rem;
+    text-align: center;
+    margin-top: 6px;
+    display: none;
+}
+
+#board-preview-dimensions.visible {
+    display: block;
+}
+
+/* ---------- FOOTER STATUS BAR ---------- */
+
+#footer-status-bar {
+    background-color: #1a1c1f;
+    border-top: 1px solid var(--pp-sidebar-border);
+    z-index: 20;
+}
+
+#help-status-bar {
+    color: #8a9095;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    letter-spacing: .3px;
+}
+
+#help-status-bar .key {
+    background: #2a2d31;
+    padding: 1px 6px;
+    border-radius: 3px;
+    color: #c5c9cd;
+    font-size: .75rem;
+    margin: 0 1px;
+}
+
+.bg-shade {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 1px solid #444;
+    cursor: pointer;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    transition: transform .1s ease;
+}
+
+.bg-shade:hover {
+    transform: scale(1.15);
+}
+
+.bg-shade.selected {
+    border: 2px solid var(--pp-accent);
+}
+
+/* ---------- BOOTSTRAP FORM TWEAKS for dark canvas ---------- */
+
+.form-control {
+    background-color: #0f1114;
+    border-color: #2a2d31;
+    color: #e6e8ea;
+}
+
+.form-control:focus {
+    background-color: #0f1114;
+    border-color: var(--pp-accent);
+    color: #fff;
+    box-shadow: 0 0 0 .15rem var(--pp-accent-soft);
+}
+
+.form-check-input:checked {
+    background-color: var(--pp-accent);
+    border-color: var(--pp-accent);
+}
+
+/* ---------- UTILITIES ---------- */
+
+.hidden { display: none !important; }
+
+[hidden] { display: none !important; }

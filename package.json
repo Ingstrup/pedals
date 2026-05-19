@@ -1,22 +1,23 @@
 {
   "name": "pedals",
   "version": "1.0.0",
-  "description": "",
-  "main": "app.js",
-  "directories": {
-    "test": "tests"
-  },
+  "description": "Vanilla-JS pedalboard layout planner.",
+  "main": "src/app.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "serve -p 3000 -L .",
+    "serve": "serve -p 3000 -L .",
+    "test": "playwright test",
+    "test:ui": "playwright test --ui",
+    "test:headed": "playwright test --headed",
+    "setup": "bash scripts/setup_testing.sh"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Ingstrup/pedals.git"
   },
-  "keywords": [],
+  "keywords": ["pedalboard", "guitar", "planner", "vanilla-js"],
   "author": "",
   "license": "ISC",
-  "type": "commonjs",
   "bugs": {
     "url": "https://github.com/Ingstrup/pedals/issues"
   },
