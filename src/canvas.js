@@ -25,7 +25,7 @@ function setHelp(html) {
 }
 
 const DEFAULT_HELP =
-    '<i class="bi bi-info-circle"></i> Scroll to zoom · drag canvas to pan · ' +
+    '<i class="bi bi-info-circle"></i> Scroll to zoom · ' +
     'click to select · <span class="key">R</span> rotate · ' +
     '<span class="key">Del</span> delete · <span class="key">F</span> fit · ' +
     '<span class="key">U</span> undo';
