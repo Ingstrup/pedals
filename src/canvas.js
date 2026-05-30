@@ -246,17 +246,6 @@ export function renderBoards() {
             e.preventDefault();
         });
 
-        // Double-click empty board area: remove board (with confirmation)
-        boardDiv.addEventListener('dblclick', (e) => {
-            if (e.target !== boardDiv) return;
-            const n = board.pedals.length;
-            const msg = n
-                ? `Remove board and its ${n} pedal${n !== 1 ? 's' : ''}?`
-                : 'Remove this board?';
-            if (!confirm(msg)) return;
-            removeBoardFromCanvas(board.id);
-        });
-
         board.pedals.forEach(p => {
             const pedalData = state.pedals.find(pd => pd.id === p.pedalId);
             if (pedalData) renderPedalDOM(pedalData, p.x, p.y, p.instanceId, boardDiv, board.id);
@@ -360,11 +349,10 @@ export function renderPedalDOM(pedalData, x, y, instanceId, parentEl, boardId) {
 
         setHelp(
             '<i class="bi bi-plug"></i> Selected pedal · drag to move · ' +
-            '<span class="key">R</span> rotate · <span class="key">Del</span> or double-click to remove'
+            '<span class="key">R</span> rotate · <span class="key">Del</span> to remove'
         );
     });
 
-    el.addEventListener('dblclick', () => removePedal(instanceId));
     parentEl.appendChild(el);
 }
 
