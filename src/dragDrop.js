@@ -1,6 +1,7 @@
 import { state } from './state.js';
 import { saveToLocalStorage } from './storage.js';
 import { renderBoards, maybeSnap } from './canvas.js';
+import { pushSnapshot } from './history.js';
 
 const CLICK_THRESHOLD_PX = 3;
 
@@ -19,6 +20,7 @@ export function setupDragAndDrop() {
         if (!pedalEl) return;
         draggingEl = pedalEl;
         hasDragged = false;
+        pushSnapshot();
         startMouseX = e.clientX;
         startMouseY = e.clientY;
         startElLeft = parseFloat(draggingEl.style.left || 0);

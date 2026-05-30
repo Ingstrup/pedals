@@ -1,6 +1,7 @@
 import { state } from './state.js';
 import { saveToLocalStorage } from './storage.js';
 import { updateBoardInfoPanel, updateOnCanvasSidebar } from './sidebar.js';
+import { pushSnapshot } from './history.js';
 
 export let highestZ = 10;
 
@@ -26,7 +27,8 @@ function setHelp(html) {
 const DEFAULT_HELP =
     '<i class="bi bi-info-circle"></i> Scroll to zoom · drag canvas to pan · ' +
     'click to select · <span class="key">R</span> rotate · ' +
-    '<span class="key">Del</span> delete · <span class="key">F</span> fit';
+    '<span class="key">Del</span> delete · <span class="key">F</span> fit · ' +
+    '<span class="key">U</span> undo';
 
 export function resetHelp() {
     setHelp(DEFAULT_HELP);
@@ -111,6 +113,7 @@ export function addBoardToCanvas(board) {
         state.placedBoards.length === 0 && state.canvasPedals.length === 0;
 
     if (!state.placedBoards.find(b => b.id === board.id)) {
+        pushSnapshot();
         const initialX = maybeSnap(100 + state.placedBoards.length * 40);
         const initialY = maybeSnap(100 + state.placedBoards.length * 40);
 
@@ -129,6 +132,7 @@ export function addBoardToCanvas(board) {
 }
 
 export function removeBoardFromCanvas(boardId) {
+    pushSnapshot();
     state.placedBoards = state.placedBoards.filter(b => b.id !== boardId);
     if (state.selectedBoardId === boardId) {
         state.selectedBoardId =
@@ -230,9 +234,10 @@ export function renderBoards() {
 
             setHelp(
                 '<i class="bi bi-grid"></i> Selected board · drag to move · ' +
-                'click "Clear" to wipe its pedals · double-click to remove'
+                'click "Clear" to wipe its pedals · sidebar X to remove'
             );
 
+            pushSnapshot();
             isDragging = true;
             didMove = false;
             dragStartMouseX = e.clientX;
@@ -264,6 +269,7 @@ export function renderBoards() {
 }
 
 export function addPedalToBoard(pedalData, savedX = null, savedY = null, instanceId = null) {
+    if (!instanceId) pushSnapshot();
     const id = instanceId || `pedal_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
     const board = state.placedBoards.find(b => b.id === state.selectedBoardId);
 
@@ -357,6 +363,7 @@ export function renderPedalDOM(pedalData, x, y, instanceId, parentEl, boardId) {
 }
 
 export function removePedal(instanceId) {
+    pushSnapshot();
     let removed = false;
     for (const board of state.placedBoards) {
         const idx = board.pedals.findIndex(p => p.instanceId === instanceId);
@@ -390,6 +397,7 @@ export function rotateFocusedPedal() {
     }
     if (!targetPedal) return false;
 
+    pushSnapshot();
     targetPedal.rotation = ((targetPedal.rotation || 0) + 90) % 360;
     element.style.transform = `rotate(${targetPedal.rotation}deg)`;
     saveToLocalStorage();

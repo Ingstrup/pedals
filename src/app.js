@@ -8,6 +8,7 @@ import {
     resetHelp, ZOOM_MIN, ZOOM_MAX,
 } from './canvas.js';
 import { setupDragAndDrop } from './dragDrop.js';
+import { pushSnapshot, popSnapshot, canUndo, onUndoChange } from './history.js';
 
 async function init() {
     await loadData();
@@ -40,6 +41,9 @@ function setupEventListeners() {
         } else if (e.key.toLowerCase() === 'f') {
             e.preventDefault();
             fitToScreen();
+        } else if (e.key.toLowerCase() === 'u') {
+            e.preventDefault();
+            performUndo();
         }
     });
 
@@ -88,11 +92,12 @@ function setupEventListeners() {
     // -------- clear / nuke --------
     document.getElementById('clear-selected-board-btn').addEventListener('click', () => {
         const b = state.placedBoards.find(x => x.id === state.selectedBoardId);
-        if (b) { b.pedals = []; renderBoards(); saveToLocalStorage(); }
+        if (b) { pushSnapshot(); b.pedals = []; renderBoards(); saveToLocalStorage(); }
     });
 
     document.getElementById('clear-board-btn').addEventListener('click', () => {
         if (confirm('Are you sure you want to clear the entire canvas? This removes all boards and pedals.')) {
+            pushSnapshot();
             state.placedBoards = [];
             state.canvasPedals = [];
             state.selectedBoardId = null;
@@ -100,6 +105,12 @@ function setupEventListeners() {
             saveToLocalStorage();
         }
     });
+
+    // -------- undo --------
+    const undoBtn = document.getElementById('undo-btn');
+    undoBtn.addEventListener('click', performUndo);
+    onUndoChange(enabled => { undoBtn.disabled = !enabled; });
+    undoBtn.disabled = true;
 
     // -------- zoom (cross-browser normalized) --------
     document.getElementById('canvas-container').addEventListener('wheel', (e) => {
@@ -165,6 +176,16 @@ function setupEventListeners() {
         }
         e.target.value = '';
     });
+}
+
+function performUndo() {
+    const snap = popSnapshot();
+    if (!snap) return;
+    state.placedBoards = snap.placedBoards;
+    state.canvasPedals = snap.canvasPedals;
+    window.activeFocusedPedal = null;
+    renderBoards();
+    saveToLocalStorage();
 }
 
 window.addEventListener('DOMContentLoaded', init);
