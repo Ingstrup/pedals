@@ -12,6 +12,17 @@ FTP-deployable: upload `index.html`, `src/`, `data/` — nothing else needed on 
 - `tests/` — Playwright tests (dev only)
 - `node_modules/` — dev only (`serve` + `@playwright/test`)
 
+## Model selection + effort estimate
+**Before starting any task, always state:**
+1. **Model:** Sonnet 4.6 (default) or Opus 4.7 (complex reasoning / architecture)
+2. **Effort:** S (< 30 min) · M (30 min – 2 hr) · L (half day+)
+3. Ask for approval before proceeding
+
+Example: *"Model: Sonnet · Effort: S — add confirm dialog to board delete. Proceed?"*
+
+- **Sonnet:** feature work, bug fixes, refactors, tests
+- **Opus:** architectural planning, major new systems, gnarly debugging
+
 ## Running locally
 ```
 npm start       # serves on http://localhost:3000
