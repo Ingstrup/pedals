@@ -83,21 +83,19 @@ export function setupDragAndDrop() {
             pedalDataState = state.canvasPedals.splice(idx, 1)[0];
         }
 
-        // Orientation: width/height swap for 90°/270° rotations so the
-        // anchor point stays at the visual center.
+        // style.left/top always reference unrotated dimensions — CSS transform handles
+        // the visual rotation around the element center (transform-origin: 50% 50%).
+        // No width/height swap needed here regardless of rotation angle.
         const wRaw = parseFloat(draggingEl.style.width);
         const hRaw = parseFloat(draggingEl.style.height);
-        const rotated = ((pedalDataState.rotation || 0) % 180) === 90;
-        const pedalWidth = rotated ? hRaw : wRaw;
-        const pedalHeight = rotated ? wRaw : hRaw;
 
         if (targetBoard) {
-            pedalDataState.x = maybeSnap((absoluteCanvasX - targetBoard.x) - pedalWidth / 2);
-            pedalDataState.y = maybeSnap((absoluteCanvasY - targetBoard.y) - pedalHeight / 2);
+            pedalDataState.x = maybeSnap((absoluteCanvasX - targetBoard.x) - wRaw / 2);
+            pedalDataState.y = maybeSnap((absoluteCanvasY - targetBoard.y) - hRaw / 2);
             targetBoard.pedals.push(pedalDataState);
         } else {
-            pedalDataState.x = maybeSnap(absoluteCanvasX - pedalWidth / 2);
-            pedalDataState.y = maybeSnap(absoluteCanvasY - pedalHeight / 2);
+            pedalDataState.x = maybeSnap(absoluteCanvasX - wRaw / 2);
+            pedalDataState.y = maybeSnap(absoluteCanvasY - hRaw / 2);
             state.canvasPedals.push(pedalDataState);
         }
 
