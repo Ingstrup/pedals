@@ -65,4 +65,18 @@ test.describe('Boards: custom, info panel, multi-board, removal', () => {
         await page.locator('.placed-board').first().click();
         await expect(page.locator('.placed-board').first()).toHaveClass(/focused/);
     });
+
+    test('double-clicking board shows confirm; dismiss keeps the board', async ({ page }) => {
+        await createCustomBoard(page, 60, 30);
+        page.once('dialog', dialog => dialog.dismiss());
+        await page.locator('.placed-board').first().dblclick();
+        await expect(page.locator('.placed-board')).toHaveCount(1);
+    });
+
+    test('double-clicking board shows confirm; accept removes the board', async ({ page }) => {
+        await createCustomBoard(page, 60, 30);
+        page.once('dialog', dialog => dialog.accept());
+        await page.locator('.placed-board').first().dblclick();
+        await expect(page.locator('.placed-board')).toHaveCount(0);
+    });
 });

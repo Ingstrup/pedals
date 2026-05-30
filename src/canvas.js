@@ -246,9 +246,14 @@ export function renderBoards() {
             e.preventDefault();
         });
 
-        // Double-click empty board area: remove board
+        // Double-click empty board area: remove board (with confirmation)
         boardDiv.addEventListener('dblclick', (e) => {
             if (e.target !== boardDiv) return;
+            const n = board.pedals.length;
+            const msg = n
+                ? `Remove board and its ${n} pedal${n !== 1 ? 's' : ''}?`
+                : 'Remove this board?';
+            if (!confirm(msg)) return;
             removeBoardFromCanvas(board.id);
         });
 
