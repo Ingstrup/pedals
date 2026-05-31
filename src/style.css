@@ -460,6 +460,22 @@ body:not(.kbd-nav) .list-item:hover {
     display: none;
 }
 
+/* Touch action bar: never on desktop (keyboard shortcuts cover it).
+   On mobile the media queries reveal it via #touch-actions:not([hidden]). */
+#touch-actions {
+    display: none;
+    position: fixed;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 150;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 12px;
+    background: rgba(28, 30, 33, 0.96);
+    border: 1px solid var(--pp-sidebar-border);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+}
+
 /* ---- Phone portrait: #sidebar is a bottom sheet ---- */
 @media (max-width: 767px) and (orientation: portrait) {
     #sidebar {
@@ -529,6 +545,12 @@ body:not(.kbd-nav) .list-item:hover {
     #preview-overlay {
         display: none !important;
     }
+
+    /* Action bar sits just above the collapsed sheet peek */
+    #touch-actions:not([hidden]) {
+        display: flex;
+        bottom: calc(var(--sheet-peek, 96px) + env(safe-area-inset-bottom) + 14px);
+    }
 }
 
 /* ---- Phone landscape: #sidebar is a left slide-in drawer ---- */
@@ -585,5 +607,10 @@ body:not(.kbd-nav) .list-item:hover {
 
     #preview-overlay {
         display: none !important;
+    }
+
+    #touch-actions:not([hidden]) {
+        display: flex;
+        bottom: calc(env(safe-area-inset-bottom) + 14px);
     }
 }

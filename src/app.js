@@ -10,6 +10,7 @@ import {
 import { setupDragAndDrop } from './dragDrop.js';
 import { pushSnapshot, popSnapshot, canUndo, onUndoChange } from './history.js';
 import { setupGestures } from './gestures.js';
+import { setupTouchActions } from './touchActions.js';
 
 async function init() {
     await loadData();
@@ -20,6 +21,7 @@ async function init() {
     setupGestures();
     setupEventListeners();
     setupSheet();
+    setupTouchActions();
     resetHelp();
 
     // Load state BEFORE deciding whether to fit-to-screen, so we don't override

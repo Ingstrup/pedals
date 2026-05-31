@@ -9,6 +9,11 @@ export let highestZ = 10;
 export const ZOOM_MIN = 0.2;
 export const ZOOM_MAX = 4;
 
+// Let the touch action bar know the focused pedal / selected board changed.
+function emitSelectionChanged() {
+    document.dispatchEvent(new CustomEvent('selection-changed'));
+}
+
 /* ---------- helpers ---------- */
 
 export function snapEnabled() {
@@ -141,6 +146,7 @@ export function removeBoardFromCanvas(boardId) {
     }
     renderBoards();
     saveToLocalStorage();
+    emitSelectionChanged();
 }
 
 /* ---------- empty-canvas click clears selection ---------- */
@@ -162,6 +168,7 @@ export function setupBoardPanning() {
             window.activeFocusedPedal = null;
 
             renderBoards();
+            emitSelectionChanged();
         }
     });
 }
@@ -238,6 +245,7 @@ export function renderBoards() {
                 '<i class="bi bi-grid"></i> Selected board · drag to move · ' +
                 'click "Clear" to wipe its pedals · sidebar X to remove'
             );
+            emitSelectionChanged();
 
             pushSnapshot();
             isDragging = true;
@@ -357,6 +365,7 @@ export function renderPedalDOM(pedalData, x, y, instanceId, parentEl, boardId) {
             .forEach(p => p.classList.remove('focused'));
         el.classList.add('focused');
         window.activeFocusedPedal = { instanceId, boardId, element: el };
+        emitSelectionChanged();
 
         setHelp(
             '<i class="bi bi-plug"></i> Selected pedal · drag to move · ' +
@@ -388,6 +397,7 @@ export function removePedal(instanceId) {
     }
     renderBoards();
     saveToLocalStorage();
+    emitSelectionChanged();
 }
 
 export function rotateFocusedPedal() {
