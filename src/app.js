@@ -205,8 +205,13 @@ function setupSheet() {
     menuBtn.addEventListener('click', openSheet);
     backdrop.addEventListener('click', closeSheet);
 
-    // Landscape drawer: auto-close once an item is added (search list selection)
-    document.addEventListener('catalog-select', closeSheet);
+    // Landscape drawer auto-closes once an item is added so you see the canvas.
+    // Portrait sheet stays open so you can add several pedals in a row.
+    document.addEventListener('catalog-select', () => {
+        if (matchMedia('(orientation: landscape) and (max-height: 500px)').matches) {
+            closeSheet();
+        }
+    });
 
     // --- portrait bottom-sheet handle: tap toggles, drag follows + snaps ---
     let dragging = false;

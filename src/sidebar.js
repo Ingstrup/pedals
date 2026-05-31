@@ -9,6 +9,8 @@ export let pedalListManager = null;
 
 const CHUNK_SIZE = 50;
 const PREVIEW_DEBOUNCE_MS = 100;
+const THUMB_PLACEHOLDER =
+    'https://placehold.co/64x64/2a2d31/8a9095?text=%E2%99%AA';
 
 /* ---------- generic high-perf list manager ---------- */
 
@@ -42,18 +44,42 @@ function createListManager({
 
     data.forEach(item => nodes.push(buildNode(item)));
 
+    // Single activation path used by both click/tap and the Enter key.
+    function activateNode(nodeObj) {
+        onSelect(nodeObj.item);
+        list.classList.remove('active');
+        input.blur();
+        if (onHighlight) onHighlight(null);
+        document.dispatchEvent(new CustomEvent('catalog-select'));
+    }
+
     function createNodeEl(nodeObj) {
         if (nodeObj.el) return nodeObj.el;
         const div = document.createElement('div');
         div.className = 'list-item';
-        div.textContent = nodeObj.text;
-        div.onmousedown = (e) => {
+
+        const thumb = document.createElement('img');
+        thumb.className = 'list-thumb';
+        thumb.loading = 'lazy';
+        thumb.alt = '';
+        thumb.src = nodeObj.item.image || THUMB_PLACEHOLDER;
+        thumb.addEventListener('error', () => {
+            thumb.onerror = null;
+            thumb.src = THUMB_PLACEHOLDER;
+        });
+
+        const label = document.createElement('span');
+        label.className = 'list-label';
+        label.textContent = nodeObj.text;
+
+        div.appendChild(thumb);
+        div.appendChild(label);
+
+        // Click/tap activates (works for mouse and touch alike).
+        div.addEventListener('click', (e) => {
             e.preventDefault();
-            onSelect(nodeObj.item);
-            list.classList.remove('active');
-            input.blur();
-            if (onHighlight) onHighlight(null);
-        };
+            activateNode(nodeObj);
+        });
         div.addEventListener('mouseenter', () => {
             // ignore hover while in keyboard-nav mode (REQ: avoid conflict)
             if (document.body.classList.contains('kbd-nav')) return;
@@ -144,9 +170,8 @@ function createListManager({
             setHighlight(activeIndex + (e.key === 'ArrowDown' ? 1 : -1));
         } else if (e.key === 'Enter') {
             e.preventDefault();
-            if (activeIndex >= 0 && activeIndex < renderedCount
-                && filteredNodes[activeIndex].el) {
-                filteredNodes[activeIndex].el.onmousedown(e);
+            if (activeIndex >= 0 && activeIndex < filteredNodes.length) {
+                activateNode(filteredNodes[activeIndex]);
             }
         } else if (e.key === 'Escape') {
             list.classList.remove('active');
