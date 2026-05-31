@@ -2,27 +2,39 @@ import { state } from './state.js';
 import { saveToLocalStorage } from './storage.js';
 import { renderBoards, maybeSnap } from './canvas.js';
 import { pushSnapshot } from './history.js';
+import { setElementDragging } from './dragState.js';
 
-const CLICK_THRESHOLD_PX = 3;
+const CLICK_THRESHOLD_PX = 8;
 
 export function setupDragAndDrop() {
     let draggingEl = null;
-    let startMouseX = 0;
-    let startMouseY = 0;
+    let activePointerId = null;
+    let startX = 0;
+    let startY = 0;
     let startElLeft = 0;
     let startElTop = 0;
     let dragSource = null;
     let hasDragged = false;
 
-    document.addEventListener('mousedown', (e) => {
-        if (e.button !== 0) return;
+    function reset() {
+        draggingEl = null;
+        activePointerId = null;
+        dragSource = null;
+        setElementDragging(false);
+    }
+
+    document.addEventListener('pointerdown', (e) => {
+        if (e.button !== 0) return;            // primary button / touch contact only
+        if (draggingEl) return;                // ignore extra pointers mid-drag
         const pedalEl = e.target.closest('.pedal');
         if (!pedalEl) return;
         draggingEl = pedalEl;
+        activePointerId = e.pointerId;
         hasDragged = false;
+        setElementDragging(true);
         pushSnapshot();
-        startMouseX = e.clientX;
-        startMouseY = e.clientY;
+        startX = e.clientX;
+        startY = e.clientY;
         startElLeft = parseFloat(draggingEl.style.left || 0);
         startElTop = parseFloat(draggingEl.style.top || 0);
         dragSource = {
@@ -32,13 +44,13 @@ export function setupDragAndDrop() {
         };
     });
 
-    document.addEventListener('mousemove', (e) => {
-        if (!draggingEl) return;
-        const dx = (e.clientX - startMouseX) / state.zoom;
-        const dy = (e.clientY - startMouseY) / state.zoom;
+    document.addEventListener('pointermove', (e) => {
+        if (!draggingEl || e.pointerId !== activePointerId) return;
+        const dx = (e.clientX - startX) / state.zoom;
+        const dy = (e.clientY - startY) / state.zoom;
         if (!hasDragged
-            && (Math.abs(e.clientX - startMouseX) > CLICK_THRESHOLD_PX
-                || Math.abs(e.clientY - startMouseY) > CLICK_THRESHOLD_PX)) {
+            && (Math.abs(e.clientX - startX) > CLICK_THRESHOLD_PX
+                || Math.abs(e.clientY - startY) > CLICK_THRESHOLD_PX)) {
             hasDragged = true;
         }
         if (hasDragged) {
@@ -47,12 +59,11 @@ export function setupDragAndDrop() {
         }
     });
 
-    document.addEventListener('mouseup', () => {
-        if (!draggingEl || !dragSource) return;
+    function onPointerUp(e) {
+        if (!draggingEl || e.pointerId !== activePointerId || !dragSource) return;
 
         if (!hasDragged) {
-            draggingEl = null;
-            dragSource = null;
+            reset();
             return;
         }
 
@@ -77,7 +88,7 @@ export function setupDragAndDrop() {
         let pedalDataState;
         if (dragSource.type === 'board') {
             const b = state.placedBoards.find(b => b.id === dragSource.boardId);
-            if (!b) { draggingEl = null; dragSource = null; return; }
+            if (!b) { reset(); return; }
             const idx = b.pedals.findIndex(p => p.instanceId === dragSource.instanceId);
             pedalDataState = b.pedals.splice(idx, 1)[0];
         } else {
@@ -103,7 +114,9 @@ export function setupDragAndDrop() {
 
         saveToLocalStorage();
         renderBoards();
-        draggingEl = null;
-        dragSource = null;
-    });
+        reset();
+    }
+
+    document.addEventListener('pointerup', onPointerUp);
+    document.addEventListener('pointercancel', () => { if (draggingEl) reset(); });
 }

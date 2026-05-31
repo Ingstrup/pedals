@@ -2,6 +2,7 @@ import { state } from './state.js';
 import { saveToLocalStorage } from './storage.js';
 import { updateBoardInfoPanel, updateOnCanvasSidebar } from './sidebar.js';
 import { pushSnapshot } from './history.js';
+import { setElementDragging } from './dragState.js';
 
 export let highestZ = 10;
 
@@ -146,7 +147,7 @@ export function removeBoardFromCanvas(boardId) {
 
 export function setupBoardPanning() {
     const container = document.getElementById('canvas-container');
-    container.addEventListener('mousedown', (e) => {
+    container.addEventListener('pointerdown', (e) => {
         const inWrapperBg = e.target.closest('#board-wrapper')
             && !e.target.closest('.pedal')
             && !e.target.closest('.placed-board');
@@ -193,37 +194,38 @@ export function renderBoards() {
         // Drag state, scoped per board.
         let isDragging = false;
         let didMove = false;
-        let dragStartMouseX = 0, dragStartMouseY = 0;
+        let activePointerId = null;
+        let dragStartX = 0, dragStartY = 0;
         let dragStartBoardX = 0, dragStartBoardY = 0;
 
-        const onMouseMove = (e) => {
-            if (!isDragging) return;
-            const dx = (e.clientX - dragStartMouseX) / state.zoom;
-            const dy = (e.clientY - dragStartMouseY) / state.zoom;
+        const onPointerMove = (e) => {
+            if (!isDragging || e.pointerId !== activePointerId) return;
+            const dx = (e.clientX - dragStartX) / state.zoom;
+            const dy = (e.clientY - dragStartY) / state.zoom;
             if (!didMove && (Math.abs(dx) > 1 || Math.abs(dy) > 1)) didMove = true;
 
-            let targetX = dragStartBoardX + dx;
-            let targetY = dragStartBoardY + dy;
-            targetX = maybeSnap(targetX);
-            targetY = maybeSnap(targetY);
-
-            board.x = targetX;
-            board.y = targetY;
+            board.x = maybeSnap(dragStartBoardX + dx);
+            board.y = maybeSnap(dragStartBoardY + dy);
             boardDiv.style.left = board.x + 'px';
             boardDiv.style.top = board.y + 'px';
         };
 
-        const onMouseUp = () => {
-            if (!isDragging) return;
+        const onPointerUp = (e) => {
+            if (!isDragging || e.pointerId !== activePointerId) return;
             isDragging = false;
-            document.removeEventListener('mousemove', onMouseMove);
-            document.removeEventListener('mouseup', onMouseUp);
+            activePointerId = null;
+            setElementDragging(false);
+            document.removeEventListener('pointermove', onPointerMove);
+            document.removeEventListener('pointerup', onPointerUp);
+            document.removeEventListener('pointercancel', onPointerUp);
             document.body.style.userSelect = '';
             if (didMove) saveToLocalStorage();
         };
 
-        boardDiv.addEventListener('mousedown', (e) => {
+        boardDiv.addEventListener('pointerdown', (e) => {
             if (e.target !== boardDiv) return;
+            if (e.button !== 0) return;
+            if (isDragging) return;
 
             state.selectedBoardId = board.id;
             updateBoardInfoPanel();
@@ -240,14 +242,17 @@ export function renderBoards() {
             pushSnapshot();
             isDragging = true;
             didMove = false;
-            dragStartMouseX = e.clientX;
-            dragStartMouseY = e.clientY;
+            activePointerId = e.pointerId;
+            setElementDragging(true);
+            dragStartX = e.clientX;
+            dragStartY = e.clientY;
             dragStartBoardX = board.x;
             dragStartBoardY = board.y;
             boardDiv.style.zIndex = ++highestZ;
             document.body.style.userSelect = 'none';
-            document.addEventListener('mousemove', onMouseMove);
-            document.addEventListener('mouseup', onMouseUp);
+            document.addEventListener('pointermove', onPointerMove);
+            document.addEventListener('pointerup', onPointerUp);
+            document.addEventListener('pointercancel', onPointerUp);
             e.preventDefault();
         });
 
@@ -346,7 +351,7 @@ export function renderPedalDOM(pedalData, x, y, instanceId, parentEl, boardId) {
     };
     el.appendChild(img);
 
-    el.addEventListener('mousedown', () => {
+    el.addEventListener('pointerdown', () => {
         el.style.zIndex = ++highestZ;
         Array.from(document.querySelectorAll('.pedal'))
             .forEach(p => p.classList.remove('focused'));
