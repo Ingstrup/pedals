@@ -9,6 +9,7 @@ import {
 } from './canvas.js';
 import { setupDragAndDrop } from './dragDrop.js';
 import { pushSnapshot, popSnapshot, canUndo, onUndoChange } from './history.js';
+import { setupGestures } from './gestures.js';
 
 async function init() {
     await loadData();
@@ -16,6 +17,7 @@ async function init() {
     setupBgShadeSelector();
     setupBoardPanning();
     setupDragAndDrop();
+    setupGestures();
     setupEventListeners();
     resetHelp();
 
