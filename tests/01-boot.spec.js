@@ -5,7 +5,7 @@ test.describe('Boot & basic chrome', () => {
     test.beforeEach(async ({ page }) => { await gotoFresh(page); });
 
     test('page title and key shells render', async ({ page }) => {
-        await expect(page).toHaveTitle(/Pedalboard Planner/);
+        await expect(page).toHaveTitle(/ThatPedalPlanner/);
         await expect(page.locator('#sidebar')).toBeVisible();
         await expect(page.locator('#canvas-container')).toBeVisible();
         await expect(page.locator('#board-search')).toBeVisible();

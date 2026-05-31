@@ -17,13 +17,6 @@ test.describe('Pedals: placement, drag, snap, rotate, delete', () => {
         await expect(page.locator('.pedal')).toHaveCount(1);
     });
 
-    test('double-click deletes a pedal', async ({ page }) => {
-        await addPedalByTypeahead(page, 'boss ds1');
-        await expect(page.locator('.pedal')).toHaveCount(1);
-        await page.locator('.pedal').first().dblclick();
-        await expect(page.locator('.pedal')).toHaveCount(0);
-    });
-
     test('snap-to-grid lands the pedal on a 10-px multiple', async ({ page }) => {
         await expect(page.locator('#snap-grid')).toBeChecked();
         await addPedalByTypeahead(page, 'boss ds1');
@@ -112,8 +105,7 @@ test.describe('Pedals: placement, drag, snap, rotate, delete', () => {
         await page.fill('#pedal-search', '');
         await addPedalByTypeahead(page, 'boss ds1');
         await expect(page.locator('#pedal-count')).toHaveText('2');
-        // dblclick the topmost pedal (last in DOM order) to avoid occlusion races
-        await page.locator('.pedal').last().dblclick();
+        await page.locator('#on-canvas-list .pedal-sub-item .remove-btn').last().click();
         await expect(page.locator('#pedal-count')).toHaveText('1');
     });
 });
