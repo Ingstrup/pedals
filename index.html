@@ -2,7 +2,8 @@
 <html lang="en" data-bs-theme="dark">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
     <title>ThatPedalPlanner</title>
 
     <link rel="stylesheet"
@@ -12,7 +13,9 @@
     <link rel="stylesheet" href="src/style.css">
 </head>
 <body>
+<div id="sidebar-backdrop"></div>
 <aside id="sidebar" class="d-flex flex-column">
+    <button id="sheet-handle" type="button" aria-label="Expand or collapse panel"></button>
     <header class="sidebar-brand d-flex align-items-center gap-2 px-3 py-3">
         <i class="bi bi-soundwave brand-icon"></i>
         <h1 class="h5 m-0">ThatPedalPlanner</h1>
@@ -94,22 +97,25 @@
 
 <main id="main">
     <div id="toolbar" class="d-flex align-items-center gap-2 px-3 py-2">
-        <span class="text-secondary small text-uppercase fw-semibold me-auto">Workspace</span>
+        <button id="menu-btn" class="btn btn-outline-secondary btn-sm" title="Boards & pedals" aria-label="Open panel">
+            <i class="bi bi-list"></i>
+        </button>
+        <span class="toolbar-title text-secondary small text-uppercase fw-semibold me-auto">Workspace</span>
         <button id="undo-btn" class="btn btn-outline-secondary btn-sm" title="Undo (U)" disabled>
-            <i class="bi bi-arrow-counterclockwise"></i> Undo
+            <i class="bi bi-arrow-counterclockwise"></i><span class="btn-label"> Undo</span>
         </button>
         <button id="fit-to-screen-btn" class="btn btn-outline-secondary btn-sm" title="Fit to screen (F)">
-            <i class="bi bi-arrows-fullscreen"></i> Fit
+            <i class="bi bi-arrows-fullscreen"></i><span class="btn-label"> Fit</span>
         </button>
         <button id="export-json-btn" class="btn btn-outline-secondary btn-sm" title="Export layout JSON">
-            <i class="bi bi-download"></i> Export
+            <i class="bi bi-download"></i><span class="btn-label"> Export</span>
         </button>
         <input type="file" id="import-json-input" accept="application/json" hidden>
         <button id="import-json-btn" class="btn btn-outline-secondary btn-sm" title="Import layout JSON">
-            <i class="bi bi-upload"></i> Import
+            <i class="bi bi-upload"></i><span class="btn-label"> Import</span>
         </button>
         <button id="clear-board-btn" class="btn btn-outline-danger btn-sm" title="Nuke canvas">
-            <i class="bi bi-trash3"></i> Clear
+            <i class="bi bi-trash3"></i><span class="btn-label"> Clear</span>
         </button>
     </div>
 

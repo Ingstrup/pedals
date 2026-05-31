@@ -19,6 +19,7 @@ async function init() {
     setupDragAndDrop();
     setupGestures();
     setupEventListeners();
+    setupSheet();
     resetHelp();
 
     // Load state BEFORE deciding whether to fit-to-screen, so we don't override
@@ -188,6 +189,70 @@ function performUndo() {
     window.activeFocusedPedal = null;
     renderBoards();
     saveToLocalStorage();
+}
+
+/* ---------- mobile sheet / drawer controller ---------- */
+function setupSheet() {
+    const sidebar = document.getElementById('sidebar');
+    const backdrop = document.getElementById('sidebar-backdrop');
+    const handle = document.getElementById('sheet-handle');
+    const menuBtn = document.getElementById('menu-btn');
+
+    const openSheet = () => { sidebar.classList.add('open'); backdrop.classList.add('open'); };
+    const closeSheet = () => { sidebar.classList.remove('open'); backdrop.classList.remove('open'); };
+    const toggleSheet = () => (sidebar.classList.contains('open') ? closeSheet() : openSheet());
+
+    menuBtn.addEventListener('click', openSheet);
+    backdrop.addEventListener('click', closeSheet);
+
+    // Landscape drawer: auto-close once an item is added (search list selection)
+    document.addEventListener('catalog-select', closeSheet);
+
+    // --- portrait bottom-sheet handle: tap toggles, drag follows + snaps ---
+    let dragging = false;
+    let startY = 0;
+    let startOpen = false;
+    let moved = false;
+
+    handle.addEventListener('pointerdown', (e) => {
+        dragging = true;
+        moved = false;
+        startY = e.clientY;
+        startOpen = sidebar.classList.contains('open');
+        sidebar.style.transition = 'none';
+        handle.setPointerCapture(e.pointerId);
+    });
+
+    handle.addEventListener('pointermove', (e) => {
+        if (!dragging) return;
+        const dy = e.clientY - startY;
+        if (Math.abs(dy) > 4) moved = true;
+        const peek = 96;
+        const sheetH = sidebar.offsetHeight;
+        const collapsedY = sheetH - peek;
+        const base = startOpen ? 0 : collapsedY;
+        const y = Math.max(0, Math.min(base + dy, collapsedY));
+        sidebar.style.transform = `translateY(${y}px)`;
+    });
+
+    const endDrag = (e) => {
+        if (!dragging) return;
+        dragging = false;
+        sidebar.style.transition = '';
+        sidebar.style.transform = '';
+        if (!moved) { toggleSheet(); return; }
+        // Snap: decide by where we ended relative to the midpoint
+        const peek = 96;
+        const sheetH = sidebar.offsetHeight;
+        const collapsedY = sheetH - peek;
+        const dy = e.clientY - startY;
+        const base = startOpen ? 0 : collapsedY;
+        const endedY = Math.max(0, Math.min(base + dy, collapsedY));
+        if (endedY < collapsedY / 2) openSheet(); else closeSheet();
+    };
+
+    handle.addEventListener('pointerup', endDrag);
+    handle.addEventListener('pointercancel', endDrag);
 }
 
 window.addEventListener('DOMContentLoaded', init);
