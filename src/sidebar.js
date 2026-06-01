@@ -12,6 +12,11 @@ const PREVIEW_DEBOUNCE_MS = 100;
 const THUMB_PLACEHOLDER =
     'https://placehold.co/64x64/2a2d31/8a9095?text=%E2%99%AA';
 
+const MOBILE_QUERY = '(max-width: 767px), (orientation: landscape) and (max-height: 500px)';
+function isMobileLayout() {
+    return window.matchMedia(MOBILE_QUERY).matches;
+}
+
 /* ---------- generic high-perf list manager ---------- */
 
 function createListManager({
@@ -47,8 +52,11 @@ function createListManager({
     // Single activation path used by both click/tap and the Enter key.
     function activateNode(nodeObj) {
         onSelect(nodeObj.item);
-        list.classList.remove('active');
+        // On mobile keep the filtered results up but drop the keyboard, so you
+        // can add several pedals from one search without it popping back.
+        // On desktop, close the dropdown as before.
         input.blur();
+        if (!isMobileLayout()) list.classList.remove('active');
         if (onHighlight) onHighlight(null);
         document.dispatchEvent(new CustomEvent('catalog-select'));
     }
@@ -158,6 +166,10 @@ function createListManager({
         input.select();
         // restore scroll depth after the browser flushes layout
         setTimeout(() => { list.scrollTop = savedScrollTop; }, 0);
+        // Mobile: make sure the sheet is open so the results are visible.
+        if (isMobileLayout()) {
+            document.getElementById('sidebar').classList.add('open');
+        }
     });
 
     input.addEventListener('input', (e) => filterList(e.target.value));

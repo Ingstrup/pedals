@@ -492,6 +492,12 @@ body:not(.kbd-nav) .list-item:hover {
     .shade-row {
         display: block;
     }
+    /* Pad the scroll area by the keyboard height so the last results can
+       scroll clear of the on-screen keyboard. Driven by the actual keyboard
+       (visualViewport), not focus state, so tapping a result never shifts it. */
+    body.kb-open .sidebar-body {
+        padding-bottom: var(--kb, 0);
+    }
 }
 
 /* Touch action bar: never on desktop (keyboard shortcuts cover it).

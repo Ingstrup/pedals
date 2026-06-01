@@ -22,6 +22,7 @@ async function init() {
     setupEventListeners();
     setupSheet();
     setupTouchActions();
+    setupViewportKeyboard();
     resetHelp();
 
     // Load state BEFORE deciding whether to fit-to-screen, so we don't override
@@ -191,6 +192,23 @@ function performUndo() {
     window.activeFocusedPedal = null;
     renderBoards();
     saveToLocalStorage();
+}
+
+/* ---------- keyboard-aware sizing ----------
+   The on-screen keyboard shrinks visualViewport but not the layout viewport,
+   so a bottom-anchored sheet hides behind it. Expose the keyboard height as
+   --kb so the sheet can pad its scroll area and keep results reachable. */
+function setupViewportKeyboard() {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const sync = () => {
+        const kb = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+        document.documentElement.style.setProperty('--kb', kb + 'px');
+        document.body.classList.toggle('kb-open', kb > 80);
+    };
+    vv.addEventListener('resize', sync);
+    vv.addEventListener('scroll', sync);
+    sync();
 }
 
 /* ---------- mobile sheet / drawer controller ---------- */

@@ -55,6 +55,18 @@ test.describe('Mobile — touch builder', () => {
         await expect(page.locator('.pedal')).toHaveCount(1);
     });
 
+    test('results stay up after adding, so a second add needs no re-search', async ({ page }) => {
+        await openSheet(page);
+        await page.fill('#pedal-search', 'boss ds1');
+        await page.locator('#pedal-list .list-item').first().waitFor();
+        await page.tap('#pedal-list .list-item');
+        await expect(page.locator('.pedal')).toHaveCount(1);
+        // List is still open (no need to refocus the input / re-pop the keyboard)
+        await expect(page.locator('#pedal-list')).toHaveClass(/active/);
+        await page.tap('#pedal-list .list-item');
+        await expect(page.locator('.pedal')).toHaveCount(2);
+    });
+
     test('one-finger drag moves a pedal', async ({ page }) => {
         await addBoardAndPedal(page);
         const result = await page.evaluate(async () => {
