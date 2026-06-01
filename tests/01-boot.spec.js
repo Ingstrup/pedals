@@ -29,7 +29,7 @@ test.describe('Boot & basic chrome', () => {
         expect(bg).toBe('rgb(24, 25, 27)');
         // Shades render into every host (desktop footer + mobile sheet); each
         // marks exactly one selected swatch.
-        const selected = page.locator('#bg-shade-selector .bg-shade.selected');
+        const selected = page.locator('.sidebar-footer .bg-shade.selected');
         await expect(selected).toHaveCount(1);
     });
 

@@ -65,7 +65,7 @@ test.describe('Canvas: pan, zoom, fit-to-screen', () => {
     });
 
     test('background shade selector switches and persists', async ({ page }) => {
-        const swatches = page.locator('.bg-shade');
+        const swatches = page.locator('.sidebar-footer .bg-shade');
         const count = await swatches.count();
         expect(count).toBeGreaterThan(1);
         // pick the last shade (lightest)

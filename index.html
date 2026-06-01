@@ -96,6 +96,7 @@
 
     <footer class="sidebar-footer px-3 py-2 small text-secondary d-flex justify-content-between align-items-center">
         <span>Zoom <span id="zoom-readout">100%</span></span>
+        <div class="bg-shade-host d-flex gap-2 align-items-center"></div>
         <span class="autosave-indicator" id="autosave-indicator" title="Autosaved">
             <i class="bi bi-cloud-check"></i> saved
         </span>
@@ -107,7 +108,7 @@
         <button id="menu-btn" class="btn btn-outline-secondary btn-sm" title="Boards & pedals" aria-label="Open panel">
             <i class="bi bi-list"></i>
         </button>
-        <span class="toolbar-title text-secondary small text-uppercase fw-semibold me-auto">Workspace</span>
+        <span class="toolbar-title me-auto"></span>
         <button id="undo-btn" class="btn btn-outline-secondary btn-sm" title="Undo (U)" disabled>
             <i class="bi bi-arrow-counterclockwise"></i><span class="btn-label"> Undo</span>
         </button>
@@ -140,7 +141,10 @@
 
     <div id="footer-status-bar" class="d-flex justify-content-between align-items-center px-3 py-2 small">
         <span id="help-status-bar"><i class="bi bi-info-circle"></i> Scroll to zoom · drag canvas to pan · click to select</span>
-        <div id="bg-shade-selector" class="bg-shade-host d-flex gap-2 align-items-center"></div>
+        <a href="https://pedalplayground.com" target="_blank" rel="noopener"
+           class="text-secondary text-decoration-none" style="font-size:.75rem;">
+            Pedal images &amp; data kindly credited to <strong>@tehtrav</strong> · PedalPlayground.com
+        </a>
     </div>
 </main>
 
