@@ -471,8 +471,27 @@ body:not(.kbd-nav) .list-item:hover {
 
 #sheet-handle,
 #sidebar-backdrop,
-#menu-btn {
+#menu-btn,
+.shade-row {
     display: none;
+}
+
+/* Reachability on mobile (sheet + drawer): scroll the panel body and reveal
+   the in-panel canvas-shade selector (the footer one is hidden on mobile). */
+@media (max-width: 767px), (orientation: landscape) and (max-height: 500px) {
+    .sidebar-body {
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    .sidebar-body .control-group.flex-grow-1 {
+        flex: 0 0 auto;
+    }
+    #on-canvas-list {
+        overflow: visible;
+    }
+    .shade-row {
+        display: block;
+    }
 }
 
 /* Touch action bar: never on desktop (keyboard shortcuts cover it).

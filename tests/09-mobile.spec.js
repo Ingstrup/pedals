@@ -32,6 +32,19 @@ test.describe('Mobile — touch builder', () => {
         await expect(sidebar).not.toHaveClass(/\bopen\b/);
     });
 
+    test('canvas shade selector is reachable in the sheet and changes the bg', async ({ page }) => {
+        await openSheet(page);
+        const host = page.locator('.shade-row .bg-shade-host');
+        await expect(host).toBeVisible();
+        const swatches = host.locator('.bg-shade');
+        await expect(swatches).toHaveCount(5);
+        // pick the lightest shade → canvas background changes
+        await swatches.last().scrollIntoViewIfNeeded();
+        await swatches.last().tap();
+        const bg = await page.locator('#canvas-container').evaluate(el => getComputedStyle(el).backgroundColor);
+        expect(bg).toBe('rgb(237, 237, 237)'); // #ededed
+    });
+
     test('catalog rows show thumbnails and a tap adds the pedal', async ({ page }) => {
         await openSheet(page);
         await page.fill('#pedal-search', 'boss ds1');

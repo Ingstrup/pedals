@@ -27,7 +27,9 @@ test.describe('Boot & basic chrome', () => {
             getComputedStyle(el).backgroundColor);
         // #18191b ⇒ rgb(24, 25, 27)
         expect(bg).toBe('rgb(24, 25, 27)');
-        const selected = page.locator('.bg-shade.selected');
+        // Shades render into every host (desktop footer + mobile sheet); each
+        // marks exactly one selected swatch.
+        const selected = page.locator('#bg-shade-selector .bg-shade.selected');
         await expect(selected).toHaveCount(1);
     });
 

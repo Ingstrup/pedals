@@ -415,26 +415,32 @@ function setCanvasBgShade(color) {
 }
 
 export function setupBgShadeSelector() {
-    const selector = document.getElementById('bg-shade-selector');
-    if (!selector) return;
+    // Rendered into every `.bg-shade-host` (the desktop footer + the mobile
+    // sheet), with selection kept in sync across them.
+    const hosts = document.querySelectorAll('.bg-shade-host');
+    if (!hosts.length) return;
     const saved = localStorage.getItem(SHADE_STORAGE_KEY);
-    const current = saved || CANVAS_SHADES[0].color; // darkest default
+    let current = saved || CANVAS_SHADES[0].color; // darkest default
 
-    selector.innerHTML = '';
-    CANVAS_SHADES.forEach(shade => {
-        const swatch = document.createElement('div');
-        swatch.className = 'bg-shade' + (current === shade.color ? ' selected' : '');
-        swatch.style.background = shade.color;
-        swatch.title = shade.name;
-        swatch.dataset.shade = shade.color;
-        swatch.addEventListener('click', () => {
-            document.querySelectorAll('.bg-shade')
-                .forEach(el => el.classList.remove('selected'));
-            swatch.classList.add('selected');
-            setCanvasBgShade(shade.color);
-            localStorage.setItem(SHADE_STORAGE_KEY, shade.color);
+    function selectShade(color) {
+        current = color;
+        document.querySelectorAll('.bg-shade').forEach(el =>
+            el.classList.toggle('selected', el.dataset.shade === color));
+        setCanvasBgShade(color);
+        localStorage.setItem(SHADE_STORAGE_KEY, color);
+    }
+
+    hosts.forEach(host => {
+        host.innerHTML = '';
+        CANVAS_SHADES.forEach(shade => {
+            const swatch = document.createElement('div');
+            swatch.className = 'bg-shade' + (current === shade.color ? ' selected' : '');
+            swatch.style.background = shade.color;
+            swatch.title = shade.name;
+            swatch.dataset.shade = shade.color;
+            swatch.addEventListener('click', () => selectShade(shade.color));
+            host.appendChild(swatch);
         });
-        selector.appendChild(swatch);
     });
     setCanvasBgShade(current);
 }
