@@ -191,6 +191,21 @@ body {
     touch-action: none;
 }
 
+/* Stop stray text selection / the iOS long-press callout from hijacking
+   touch navigation. Inputs stay selectable so search still works.
+   `manipulation` disables double-tap-zoom without the tap-delay/JS hacks. */
+body {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+    touch-action: manipulation;
+}
+
+input, textarea {
+    -webkit-user-select: text;
+    user-select: text;
+}
+
 #canvas-container:active {
     cursor: grabbing;
 }

@@ -81,4 +81,16 @@ export function setupGestures() {
 
     container.addEventListener('pointerup', release);
     container.addEventListener('pointercancel', release);
+
+    suppressBrowserZoom();
+}
+
+// iOS Safari ignores `user-scalable=no`, so the browser's own pinch-zoom leaks
+// through. These proprietary gesture events drive that zoom — cancelling them
+// keeps zoom under our control. (Double-tap-zoom is handled separately via
+// `touch-action: manipulation` in CSS, which doesn't break fast taps.)
+function suppressBrowserZoom() {
+    ['gesturestart', 'gesturechange', 'gestureend'].forEach((type) => {
+        document.addEventListener(type, (e) => e.preventDefault(), { passive: false });
+    });
 }
