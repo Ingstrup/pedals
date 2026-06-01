@@ -216,13 +216,10 @@ function setupSheet() {
     const sidebar = document.getElementById('sidebar');
     const backdrop = document.getElementById('sidebar-backdrop');
     const handle = document.getElementById('sheet-handle');
-    const menuBtn = document.getElementById('menu-btn');
-
     const openSheet = () => { sidebar.classList.add('open'); backdrop.classList.add('open'); };
     const closeSheet = () => { sidebar.classList.remove('open'); backdrop.classList.remove('open'); };
     const toggleSheet = () => (sidebar.classList.contains('open') ? closeSheet() : openSheet());
 
-    menuBtn.addEventListener('click', openSheet);
     backdrop.addEventListener('click', closeSheet);
 
     // Landscape drawer auto-closes once an item is added so you see the canvas.

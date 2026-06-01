@@ -470,8 +470,10 @@ body:not(.kbd-nav) .list-item:hover {
    =================================================================== */
 
 #sheet-handle,
-#sidebar-backdrop,
-#menu-btn,
+#sidebar-backdrop {
+    display: none;
+}
+
 /* Reachability on mobile (sheet + drawer): scroll the panel body. */
 @media (max-width: 767px), (orientation: landscape) and (max-height: 500px) {
     .sidebar-body {
@@ -587,10 +589,6 @@ body:not(.kbd-nav) .list-item:hover {
 
 /* ---- Phone landscape: #sidebar is a left slide-in drawer ---- */
 @media (orientation: landscape) and (max-height: 500px) {
-    #menu-btn {
-        display: inline-flex;
-    }
-
     #sidebar {
         position: fixed;
         top: 0;
