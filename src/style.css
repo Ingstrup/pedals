@@ -472,12 +472,7 @@ body:not(.kbd-nav) .list-item:hover {
 #sheet-handle,
 #sidebar-backdrop,
 #menu-btn,
-.shade-row {
-    display: none;
-}
-
-/* Reachability on mobile (sheet + drawer): scroll the panel body and reveal
-   the in-panel canvas-shade selector (the footer one is hidden on mobile). */
+/* Reachability on mobile (sheet + drawer): scroll the panel body. */
 @media (max-width: 767px), (orientation: landscape) and (max-height: 500px) {
     .sidebar-body {
         overflow-y: auto;
@@ -488,9 +483,6 @@ body:not(.kbd-nav) .list-item:hover {
     }
     #on-canvas-list {
         overflow: visible;
-    }
-    .shade-row {
-        display: block;
     }
     /* Pad the scroll area by the keyboard height so the last results can
        scroll clear of the on-screen keyboard. Driven by the actual keyboard
