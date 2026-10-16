@@ -3,3 +3,4 @@ data/
 test-results/
 node_modules/
 playwright-report/
+scripts/
